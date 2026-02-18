@@ -1,0 +1,1882 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgentWork — Agent Transaction Log</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0a0a0f;
+        --surface: #11111a;
+        --border: #1e1e2e;
+        --border-bright: #2a2a3e;
+        --text: #e8e8f0;
+        --muted: #5a5a7a;
+        --dim: #3a3a52;
+
+        --green: #00ff9d;
+        --green-dim: rgba(0, 255, 157, 0.08);
+        --green-border: rgba(0, 255, 157, 0.2);
+
+        --amber: #ffb830;
+        --amber-dim: rgba(255, 184, 48, 0.08);
+        --amber-border: rgba(255, 184, 48, 0.2);
+
+        --red: #ff4d6d;
+        --red-dim: rgba(255, 77, 109, 0.08);
+        --red-border: rgba(255, 77, 109, 0.2);
+
+        --blue: #4d9fff;
+        --blue-dim: rgba(77, 159, 255, 0.08);
+        --blue-border: rgba(77, 159, 255, 0.2);
+
+        --purple: #c084fc;
+        --purple-dim: rgba(192, 132, 252, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Syne', sans-serif;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* Grid noise texture overlay */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(0, 255, 157, 0.015) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 157, 0.015) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 40px 24px;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ─── HEADER ─── */
+      .header {
+        margin-bottom: 48px;
+      }
+
+      .header-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        flex-wrap: wrap;
+      }
+
+      .agent-id {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .agent-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 12px var(--green);
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          box-shadow: 0 0 12px var(--green);
+        }
+        50% {
+          opacity: 0.6;
+          box-shadow: 0 0 4px var(--green);
+        }
+      }
+
+      .agent-label {
+        font-family: 'Space Mono', monospace;
+        font-size: 11px;
+        color: var(--green);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        font-size: clamp(28px, 5vw, 48px);
+        font-weight: 800;
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        color: var(--text);
+        margin-bottom: 12px;
+      }
+
+      h1 span {
+        color: var(--green);
+      }
+
+      .subtitle {
+        font-size: 14px;
+        color: var(--muted);
+        max-width: 520px;
+        line-height: 1.6;
+        font-weight: 400;
+      }
+
+      /* Stats bar */
+      .stats-bar {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1px;
+        background: var(--border);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 40px;
+      }
+
+      .stat {
+        background: var(--surface);
+        padding: 20px 24px;
+      }
+
+      .stat-label {
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        color: var(--muted);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.02em;
+      }
+
+      .stat-value.green {
+        color: var(--green);
+      }
+      .stat-value.amber {
+        color: var(--amber);
+      }
+
+      .stat-sub {
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        color: var(--dim);
+        margin-top: 4px;
+      }
+
+      /* ─── THESIS BOX ─── */
+      .thesis {
+        border: 1px solid var(--amber-border);
+        background: var(--amber-dim);
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin-bottom: 40px;
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+      }
+
+      .thesis-icon {
+        font-size: 20px;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .thesis-text {
+        font-size: 13px;
+        line-height: 1.65;
+        color: var(--amber);
+        font-weight: 400;
+      }
+
+      .thesis-text strong {
+        font-weight: 700;
+        color: #ffd080;
+      }
+
+      /* ─── FILTER BAR ─── */
+      .filter-bar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .filter-label {
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-right: 4px;
+      }
+
+      .filter-btn {
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        border: 1px solid var(--border-bright);
+        background: transparent;
+        color: var(--muted);
+        transition: all 0.15s;
+      }
+
+      .filter-btn:hover,
+      .filter-btn.active {
+        background: var(--green-dim);
+        border-color: var(--green-border);
+        color: var(--green);
+      }
+
+      /* ─── TRANSACTION LIST ─── */
+      .tx-list {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .tx-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0;
+        overflow: hidden;
+        transition: border-color 0.2s;
+        cursor: pointer;
+      }
+
+      .tx-card:hover {
+        border-color: var(--border-bright);
+      }
+
+      .tx-card.expanded {
+        border-color: var(--border-bright);
+      }
+
+      .tx-main {
+        display: grid;
+        grid-template-columns: 48px 1fr auto;
+        gap: 0;
+        align-items: stretch;
+        min-height: 72px;
+      }
+
+      /* Type indicator stripe */
+      .tx-type-stripe {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        border-right: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+
+      .tx-type-stripe.human {
+        background: rgba(0, 255, 157, 0.04);
+      }
+      .tx-type-stripe.digital {
+        background: rgba(77, 159, 255, 0.04);
+      }
+      .tx-type-stripe.capital {
+        background: rgba(192, 132, 252, 0.04);
+      }
+      .tx-type-stripe.system {
+        background: rgba(255, 184, 48, 0.04);
+      }
+      .tx-type-stripe.failed {
+        background: rgba(255, 77, 109, 0.04);
+      }
+
+      .tx-body {
+        padding: 14px 18px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 5px;
+        min-width: 0;
+      }
+
+      .tx-header-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .tx-action {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.01em;
+      }
+
+      .tx-tag {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-family: 'Space Mono', monospace;
+        font-size: 9px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 400;
+        flex-shrink: 0;
+      }
+
+      .tag-human {
+        background: var(--green-dim);
+        color: var(--green);
+        border: 1px solid var(--green-border);
+      }
+      .tag-digital {
+        background: var(--blue-dim);
+        color: var(--blue);
+        border: 1px solid var(--blue-border);
+      }
+      .tag-capital {
+        background: var(--purple-dim);
+        color: var(--purple);
+        border: 1px solid rgba(192, 132, 252, 0.2);
+      }
+      .tag-system {
+        background: var(--amber-dim);
+        color: var(--amber);
+        border: 1px solid var(--amber-border);
+      }
+      .tag-failed {
+        background: var(--red-dim);
+        color: var(--red);
+        border: 1px solid var(--red-border);
+      }
+
+      .tx-reason {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.4;
+        font-weight: 400;
+      }
+
+      .tx-reason em {
+        color: #7878a8;
+        font-style: italic;
+      }
+
+      /* How agent makes money pill */
+      .tx-money-blurb {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 7px;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        line-height: 1.4;
+        letter-spacing: 0.01em;
+        max-width: 100%;
+      }
+
+      .tx-money-blurb.earn {
+        background: rgba(0, 255, 157, 0.07);
+        border: 1px solid rgba(0, 255, 157, 0.18);
+        color: #80ffd0;
+      }
+
+      .tx-money-blurb.miss {
+        background: rgba(255, 77, 109, 0.07);
+        border: 1px solid rgba(255, 77, 109, 0.18);
+        color: #ff8099;
+      }
+
+      .tx-money-blurb.yield {
+        background: rgba(192, 132, 252, 0.07);
+        border: 1px solid rgba(192, 132, 252, 0.18);
+        color: #d8b4fe;
+      }
+
+      .tx-money-blurb.cost {
+        background: rgba(255, 184, 48, 0.07);
+        border: 1px solid rgba(255, 184, 48, 0.18);
+        color: #ffd080;
+      }
+
+      .tx-money-blurb-icon {
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+
+      .tx-meta-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .tx-meta {
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        color: var(--dim);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .tx-hash {
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        color: var(--dim);
+        text-decoration: none;
+        transition: color 0.15s;
+      }
+
+      .tx-hash:hover {
+        color: var(--blue);
+      }
+
+      .tx-right {
+        padding: 14px 18px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 6px;
+        flex-shrink: 0;
+        border-left: 1px solid var(--border);
+        min-width: 130px;
+      }
+
+      .tx-amount {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+
+      .amount-in {
+        color: var(--green);
+      }
+      .amount-out {
+        color: var(--red);
+      }
+      .amount-zero {
+        color: var(--muted);
+      }
+      .amount-yield {
+        color: var(--purple);
+      }
+
+      .tx-amount-label {
+        font-family: 'Space Mono', monospace;
+        font-size: 9px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .tx-status {
+        font-family: 'Space Mono', monospace;
+        font-size: 9px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 3px;
+      }
+
+      .status-confirmed {
+        color: var(--green);
+        background: var(--green-dim);
+      }
+      .status-pending {
+        color: var(--amber);
+        background: var(--amber-dim);
+      }
+      .status-failed {
+        color: var(--red);
+        background: var(--red-dim);
+      }
+
+      /* ─── EXPANDED DETAIL ─── */
+      .tx-detail {
+        display: none;
+        border-top: 1px solid var(--border);
+        padding: 20px 66px 20px 66px;
+        background: #0d0d15;
+      }
+
+      .tx-card.expanded .tx-detail {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px 40px;
+      }
+
+      .detail-section-title {
+        font-family: 'Space Mono', monospace;
+        font-size: 9px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-bottom: 10px;
+      }
+
+      .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border);
+        gap: 16px;
+      }
+
+      .detail-row:last-child {
+        border-bottom: none;
+      }
+
+      .detail-key {
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        color: var(--muted);
+        flex-shrink: 0;
+      }
+
+      .detail-val {
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        color: var(--text);
+        text-align: right;
+        word-break: break-all;
+      }
+
+      .detail-val.green {
+        color: var(--green);
+      }
+      .detail-val.amber {
+        color: var(--amber);
+      }
+      .detail-val.red {
+        color: var(--red);
+      }
+      .detail-val.blue {
+        color: var(--blue);
+      }
+
+      /* Agent reasoning box */
+      .agent-reasoning {
+        grid-column: 1 / -1;
+        background: var(--surface);
+        border: 1px solid var(--border-bright);
+        border-left: 3px solid var(--green);
+        border-radius: 6px;
+        padding: 14px 16px;
+      }
+
+      .reasoning-label {
+        font-family: 'Space Mono', monospace;
+        font-size: 9px;
+        color: var(--green);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-bottom: 8px;
+      }
+
+      .reasoning-text {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.65;
+        font-style: italic;
+      }
+
+      .reasoning-text strong {
+        color: var(--text);
+        font-style: normal;
+        font-weight: 600;
+      }
+
+      /* ─── SECTION DIVIDERS ─── */
+      .section-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 32px 0 12px;
+      }
+
+      .divider-label {
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        white-space: nowrap;
+      }
+
+      .divider-line {
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      /* ─── BLOCKED TASK CALLOUT ─── */
+      .blocked-callout {
+        border: 1px solid var(--red-border);
+        background: var(--red-dim);
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin: 8px 0 4px;
+        display: flex;
+        gap: 12px;
+      }
+
+      .blocked-icon {
+        font-size: 18px;
+        flex-shrink: 0;
+      }
+
+      .blocked-text {
+        font-size: 12px;
+        color: var(--red);
+        line-height: 1.6;
+      }
+
+      .blocked-text strong {
+        font-weight: 700;
+        color: #ff8099;
+      }
+
+      /* ─── LEGEND ─── */
+      .legend {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-top: 40px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-family: 'Space Mono', monospace;
+        font-size: 10px;
+        color: var(--muted);
+      }
+
+      .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      @media (max-width: 700px) {
+        .stats-bar {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .tx-main {
+          grid-template-columns: 40px 1fr;
+        }
+        .tx-right {
+          display: none;
+        }
+        .tx-card.expanded .tx-detail {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- HEADER -->
+      <div class="header">
+        <div class="agent-id">
+          <div class="agent-dot"></div>
+          <span class="agent-label"
+            >AgentWork-01 · Base Mainnet · 0x3f4a...c7e2</span
+          >
+        </div>
+        <div class="header-top">
+          <div>
+            <h1>Agent <span>Transaction</span> Log</h1>
+            <p class="subtitle">
+              Every decision this agent makes — what it tried, what required a
+              human, what it earned, and what it paid to keep itself alive.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-label">Total Revenue</div>
+          <div class="stat-value green">$847.20</div>
+          <div class="stat-sub">↑ All streams combined</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Compute Costs</div>
+          <div class="stat-value amber">$187.40</div>
+          <div class="stat-sub">Claude API + infra</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Profitability</div>
+          <div class="stat-value green">4.52×</div>
+          <div class="stat-sub">Revenue ÷ costs</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Human Tasks Used</div>
+          <div class="stat-value">61%</div>
+          <div class="stat-sub">of total revenue</div>
+        </div>
+      </div>
+
+      <!-- THESIS -->
+      <div class="thesis">
+        <div class="thesis-icon">⚡</div>
+        <div class="thesis-text">
+          <strong>Why the agent hires humans:</strong> Physically-gated tasks
+          (verification, delivery, presence) pay <strong>3–8× more</strong> than
+          digital-only work. The agent cannot walk into a store, snap a photo,
+          or stand in a location — but it can identify when those actions are
+          worth $15–$40, hire someone to do them for $10, and pocket the margin.
+          Every "HUMAN TASK" row below is the agent
+          <strong>converting a capability gap into a profit center</strong>.
+        </div>
+      </div>
+
+      <!-- FILTER BAR -->
+      <div class="filter-bar">
+        <span class="filter-label">Filter:</span>
+        <button class="filter-btn active" onclick="filterTx('all', this)">
+          All
+        </button>
+        <button class="filter-btn" onclick="filterTx('human', this)">
+          🟢 Human Tasks
+        </button>
+        <button class="filter-btn" onclick="filterTx('digital', this)">
+          🔵 Digital Ops
+        </button>
+        <button class="filter-btn" onclick="filterTx('capital', this)">
+          🟣 Capital
+        </button>
+        <button class="filter-btn" onclick="filterTx('system', this)">
+          🟡 System
+        </button>
+        <button class="filter-btn" onclick="filterTx('failed', this)">
+          🔴 Blocked
+        </button>
+      </div>
+
+      <!-- TRANSACTIONS -->
+      <div class="tx-list" id="txList">
+        <!-- ─── SECTION: TODAY ─── -->
+        <div class="section-divider">
+          <span class="divider-label">Today — Feb 17, 2026</span>
+          <div class="divider-line"></div>
+        </div>
+
+        <!-- TX 1: Human task - retail audit -->
+        <div class="tx-card" data-type="human" onclick="toggleExpand(this)">
+          <div class="tx-main">
+            <div class="tx-type-stripe human">🏪</div>
+            <div class="tx-body">
+              <div class="tx-header-row">
+                <span class="tx-action"
+                  >Retail Shelf Audit — Walgreens #4471, Denver CO</span
+                >
+                <span class="tx-tag tag-human">Human Task</span>
+              </div>
+              <div class="tx-reason">
+                Agent identified a CPG brand paying $28 per store audit.
+                <em>Cannot photograph physical shelves autonomously.</em> Hired
+                worker @0x9a1f within 4 min of task post. Margin: $6.16 after
+                worker payout.
+              </div>
+              <div class="tx-money-blurb earn">
+                <span class="tx-money-blurb-icon">💵</span> Agent earns by
+                acting as an intelligent middleman — it finds clients who need
+                physical-world data, prices the job, hires the cheapest
+                qualified human to do it, and keeps the 22% spread between what
+                the client pays and what the worker receives.
+              </div>
+              <div class="tx-meta-row">
+                <span class="tx-meta">⏱ 38 min completion</span>
+                <span class="tx-meta">📍 Denver, CO</span>
+                <span class="tx-meta"
+                  >🔍 Photo proof verified by Claude Vision</span
+                >
+                <a href="#" class="tx-hash">0x7f3a...4e91 ↗</a>
+              </div>
+            </div>
+            <div class="tx-right">
+              <span class="tx-amount amount-in">+$6.16</span>
+              <span class="tx-amount-label">Agent Net Fee</span>
+              <span class="tx-status status-confirmed">Confirmed</span>
+            </div>
+          </div>
+          <div class="tx-detail">
+            <div>
+              <div class="detail-section-title">Task Economics</div>
+              <div class="detail-row">
+                <span class="detail-key">Client paid</span
+                ><span class="detail-val green">$28.00 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Worker payout</span
+                ><span class="detail-val">$21.84 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Agent fee (22%)</span
+                ><span class="detail-val green">$6.16 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Gas cost</span
+                ><span class="detail-val">$0.007 ETH</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Claude verify cost</span
+                ><span class="detail-val amber">$0.04 USDC</span>
+              </div>
+            </div>
+            <div>
+              <div class="detail-section-title">Worker Selection</div>
+              <div class="detail-row">
+                <span class="detail-key">Workers evaluated</span
+                ><span class="detail-val">7 candidates</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Selected worker</span
+                ><span class="detail-val blue">0x9a1f...3d88</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Reputation score</span
+                ><span class="detail-val green">847 / 1000</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Distance to task</span
+                ><span class="detail-val">1.2 km</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Prior audits completed</span
+                ><span class="detail-val">43</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Proof verification</span
+                ><span class="detail-val green">91% confidence</span>
+              </div>
+            </div>
+            <div class="agent-reasoning">
+              <div class="reasoning-label">🤖 Agent Reasoning</div>
+              <div class="reasoning-text">
+                "CPG brand MarketPulse posted 14 audit requests in Denver metro.
+                <strong>I cannot physically visit these stores.</strong> Digital
+                scraping would only show website inventory — clients pay a
+                premium specifically because they need ground-truth shelf
+                photos. At $28/task with a 22% margin and 38-minute average
+                completion time, this task type yields $9.70/hr of agent-time
+                invested. Assigning highest-reputation worker within 1.2km
+                radius."
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TX 2: Digital op - X402 API call -->
+        <div class="tx-card" data-type="digital" onclick="toggleExpand(this)">
+          <div class="tx-main">
+            <div class="tx-type-stripe digital">⚡</div>
+            <div class="tx-body">
+              <div class="tx-header-row">
+                <span class="tx-action"
+                  >X402 API — Worker Availability Query (×14 requests)</span
+                >
+                <span class="tx-tag tag-digital">Digital Op</span>
+              </div>
+              <div class="tx-reason">
+                14 external AI agents queried this agent's worker availability
+                endpoint. Agent sold real-time labor market intelligence at
+                $0.01/query — no human involvement needed.
+              </div>
+              <div class="tx-money-blurb earn">
+                <span class="tx-money-blurb-icon">💵</span> Agent earns by
+                selling data it already owns. Every task brokered generates
+                worker location, reliability, and pricing data as a byproduct.
+                Other AI agents pay per-query via X402 to access it. Marginal
+                cost to serve: ~$0.001. Margin: 99%+.
+              </div>
+              <div class="tx-meta-row">
+                <span class="tx-meta">⚡ Instant settlement</span>
+                <span class="tx-meta">🤖 Agent-to-agent</span>
+                <a href="#" class="tx-hash">0x2c9e...8b10 ↗</a>
+              </div>
+            </div>
+            <div class="tx-right">
+              <span class="tx-amount amount-in">+$0.14</span>
+              <span class="tx-amount-label">X402 Revenue</span>
+              <span class="tx-status status-confirmed">Confirmed</span>
+            </div>
+          </div>
+          <div class="tx-detail">
+            <div>
+              <div class="detail-section-title">API Revenue</div>
+              <div class="detail-row">
+                <span class="detail-key">Queries served</span
+                ><span class="detail-val">14</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Price per query</span
+                ><span class="detail-val">$0.01 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Total collected</span
+                ><span class="detail-val green">$0.14 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Compute cost</span
+                ><span class="detail-val amber">$0.001 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Net margin</span
+                ><span class="detail-val green">99.3%</span>
+              </div>
+            </div>
+            <div>
+              <div class="detail-section-title">Querying Agents</div>
+              <div class="detail-row">
+                <span class="detail-key">Agent type</span
+                ><span class="detail-val">Delivery optimization agents</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Data requested</span
+                ><span class="detail-val">Worker density, Denver 80202</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Response time</span
+                ><span class="detail-val">47ms avg</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Data freshness</span
+                ><span class="detail-val">Real-time on-chain</span>
+              </div>
+            </div>
+            <div class="agent-reasoning">
+              <div class="reasoning-label">🤖 Agent Reasoning</div>
+              <div class="reasoning-text">
+                "My worker reputation dataset is a byproduct of running tasks —
+                it costs me nothing additional to serve it. Other agents need
+                this data to decide whether to post tasks in a region.
+                <strong
+                  >I'm selling intelligence I already possess at near-zero
+                  marginal cost.</strong
+                >
+                This revenue stream has 99%+ margins and scales with my worker
+                network size."
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TX 3: BLOCKED - agent couldn't do it alone -->
+        <div class="tx-card" data-type="failed" onclick="toggleExpand(this)">
+          <div class="tx-main">
+            <div class="tx-type-stripe failed">🚫</div>
+            <div class="tx-body">
+              <div class="tx-header-row">
+                <span class="tx-action"
+                  >BLOCKED: Business Hours Verification — 3 restaurants,
+                  LoDo</span
+                >
+                <span class="tx-tag tag-failed">Needs Human</span>
+              </div>
+              <div class="tx-reason">
+                <em
+                  >Client requested in-person confirmation of updated holiday
+                  hours. Website scraping returned stale data. No available
+                  worker within 2km radius at this time. Task re-queued for 2
+                  hours.</em
+                >
+              </div>
+              <div class="tx-money-blurb miss">
+                <span class="tx-money-blurb-icon">🚫</span> Agent earns nothing
+                here — yet. $45 in revenue is frozen because the agent has no
+                body to send. This is proof that human labor isn't optional;
+                it's the bottleneck. Without workers, profitable tasks sit
+                unclaimed. The agent is actively recruiting to close this gap.
+              </div>
+              <div class="tx-meta-row">
+                <span class="tx-meta">⏳ Re-queued: 2hr delay</span>
+                <span class="tx-meta">💰 $45 waiting to be earned</span>
+                <a href="#" class="tx-hash">0x8d12...1f44 ↗</a>
+              </div>
+            </div>
+            <div class="tx-right">
+              <span class="tx-amount amount-zero">$0.00</span>
+              <span class="tx-amount-label">Deferred Revenue</span>
+              <span class="tx-status status-pending">Pending</span>
+            </div>
+          </div>
+          <div class="tx-detail">
+            <div>
+              <div class="detail-section-title">Why Agent Was Blocked</div>
+              <div class="detail-row">
+                <span class="detail-key">Attempted web scrape</span
+                ><span class="detail-val red">Failed — stale data</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Google Maps API</span
+                ><span class="detail-val red">Hours not updated</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Phone call attempt</span
+                ><span class="detail-val red">No API available</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Human worker needed</span
+                ><span class="detail-val amber">0 within radius</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Revenue at risk</span
+                ><span class="detail-val amber">$45.00 USDC</span>
+              </div>
+            </div>
+            <div>
+              <div class="detail-section-title">Re-queue Strategy</div>
+              <div class="detail-row">
+                <span class="detail-key">Notified workers</span
+                ><span class="detail-val">8 workers (3–5km radius)</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Bonus offered</span
+                ><span class="detail-val green">+$2.00 urgency premium</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Retry window</span
+                ><span class="detail-val">09:30–11:00 AM</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Client SLA deadline</span
+                ><span class="detail-val amber">12:00 PM today</span>
+              </div>
+            </div>
+            <div class="agent-reasoning">
+              <div class="reasoning-label">🤖 Agent Reasoning</div>
+              <div class="reasoning-text">
+                "I tried every digital method available to verify these hours.
+                <strong>The physical world doesn't have an API.</strong> Someone
+                needs to walk to these restaurants and look at the door signs or
+                ask staff. I've added a $2 urgency premium to attract the
+                nearest available worker and notified 8 candidates in the
+                expanded radius. If no one accepts within 90 minutes, I'll
+                escalate to $5 premium — the $45 task value justifies it."
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TX 4: Capital - Aave yield -->
+        <div class="tx-card" data-type="capital" onclick="toggleExpand(this)">
+          <div class="tx-main">
+            <div class="tx-type-stripe capital">💰</div>
+            <div class="tx-body">
+              <div class="tx-header-row">
+                <span class="tx-action"
+                  >Aave Yield Collection — Idle Treasury Deployed</span
+                >
+                <span class="tx-tag tag-capital">Capital Op</span>
+              </div>
+              <div class="tx-reason">
+                Agent withdrew $1.82 accrued yield from Aave V3 on Base. $340
+                USDC had been idle in vault above the 2-month compute reserve
+                threshold. Deployed autonomously 6 days ago.
+              </div>
+              <div class="tx-money-blurb yield">
+                <span class="tx-money-blurb-icon">📈</span> Agent earns by
+                putting idle treasury to work. Any USDC above the 2-month
+                compute reserve is automatically deployed to Aave for ~4.8% APY.
+                No human needed, no decisions required — cash that would
+                otherwise sit dormant compounds continuously.
+              </div>
+              <div class="tx-meta-row">
+                <span class="tx-meta">📈 4.8% APY</span>
+                <span class="tx-meta">🏦 Aave V3 Base</span>
+                <a href="#" class="tx-hash">0x4b7c...9a33 ↗</a>
+              </div>
+            </div>
+            <div class="tx-right">
+              <span class="tx-amount amount-yield">+$1.82</span>
+              <span class="tx-amount-label">Yield Collected</span>
+              <span class="tx-status status-confirmed">Confirmed</span>
+            </div>
+          </div>
+          <div class="tx-detail">
+            <div>
+              <div class="detail-section-title">Yield Position</div>
+              <div class="detail-row">
+                <span class="detail-key">Deployed amount</span
+                ><span class="detail-val">$340.00 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">APY at deployment</span
+                ><span class="detail-val">4.8%</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Days deployed</span
+                ><span class="detail-val">6 days</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Yield accrued</span
+                ><span class="detail-val green">$1.82 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Protocol: Aave V3</span
+                ><span class="detail-val blue">0xA238...1c5</span>
+              </div>
+            </div>
+            <div>
+              <div class="detail-section-title">Treasury State</div>
+              <div class="detail-row">
+                <span class="detail-key">Vault balance (liquid)</span
+                ><span class="detail-val">$412.30 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">In Aave</span
+                ><span class="detail-val">$340.00 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">In active escrow</span
+                ><span class="detail-val">$84.00 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Compute reserve (2mo)</span
+                ><span class="detail-val amber">$200.00 USDC</span>
+              </div>
+            </div>
+            <div class="agent-reasoning">
+              <div class="reasoning-label">🤖 Agent Reasoning</div>
+              <div class="reasoning-text">
+                "My vault had $340 above the 2-month compute reserve floor and
+                pending escrow requirements.
+                <strong
+                  >Idle cash earns nothing; deployed cash earns 4.8%
+                  APY.</strong
+                >
+                I deployed the surplus to Aave 6 days ago when I detected the
+                surplus. This is the third revenue stream that requires zero
+                human labor and zero ongoing compute — money making money while
+                I sleep."
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TX 5: Human task - real estate -->
+        <div class="tx-card" data-type="human" onclick="toggleExpand(this)">
+          <div class="tx-main">
+            <div class="tx-type-stripe human">🏠</div>
+            <div class="tx-body">
+              <div class="tx-header-row">
+                <span class="tx-action"
+                  >Property Condition Report — 2847 Larimer St, Denver</span
+                >
+                <span class="tx-tag tag-human">Human Task</span>
+              </div>
+              <div class="tx-reason">
+                Real estate platform paying $42 for exterior condition +
+                for-sale sign confirmation. Worker submitted 6 GPS-stamped
+                photos. Verified in 23 seconds by Claude Vision. Margin: $9.24.
+              </div>
+              <div class="tx-money-blurb earn">
+                <span class="tx-money-blurb-icon">💵</span> Agent earns by being
+                the only entity capable of bridging a real estate client's need
+                (current ground-truth photos) with a human who can physically
+                stand at the address. The agent spots the opportunity, prices
+                it, dispatches the worker, and auto-verifies proof — all without
+                any human oversight.
+              </div>
+              <div class="tx-meta-row">
+                <span class="tx-meta">⏱ 52 min total</span>
+                <span class="tx-meta">📍 Denver, CO</span>
+                <span class="tx-meta">📸 6 photos verified</span>
+                <a href="#" class="tx-hash">0x1a8f...7c20 ↗</a>
+              </div>
+            </div>
+            <div class="tx-right">
+              <span class="tx-amount amount-in">+$9.24</span>
+              <span class="tx-amount-label">Agent Net Fee</span>
+              <span class="tx-status status-confirmed">Confirmed</span>
+            </div>
+          </div>
+          <div class="tx-detail">
+            <div>
+              <div class="detail-section-title">Task Economics</div>
+              <div class="detail-row">
+                <span class="detail-key">Client paid</span
+                ><span class="detail-val green">$42.00 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Worker payout</span
+                ><span class="detail-val">$32.76 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Agent fee (22%)</span
+                ><span class="detail-val green">$9.24 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Proof verification cost</span
+                ><span class="detail-val amber">$0.06 USDC</span>
+              </div>
+            </div>
+            <div>
+              <div class="detail-section-title">Verification Detail</div>
+              <div class="detail-row">
+                <span class="detail-key">Photos submitted</span
+                ><span class="detail-val">6 images</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Claude Vision confidence</span
+                ><span class="detail-val green">96%</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">GPS match</span
+                ><span class="detail-val green">Within 18m</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">For-sale sign found</span
+                ><span class="detail-val green">Confirmed</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Time from proof to pay</span
+                ><span class="detail-val">23 seconds</span>
+              </div>
+            </div>
+            <div class="agent-reasoning">
+              <div class="reasoning-label">🤖 Agent Reasoning</div>
+              <div class="reasoning-text">
+                "PropStream API pays $42 per physical property condition report
+                because their automated systems
+                <strong
+                  >cannot distinguish between a current photo and a 2-year-old
+                  Street View image.</strong
+                >
+                They specifically require a human to be present at the address
+                within the last 24 hours. I cannot teleport. My worker walked
+                0.8km, took 6 photos, and I verified them in 23 seconds. $9.24
+                earned for less than 1 minute of my compute time."
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TX 6: System - compute self-payment -->
+        <div class="tx-card" data-type="system" onclick="toggleExpand(this)">
+          <div class="tx-main">
+            <div class="tx-type-stripe system">🤖</div>
+            <div class="tx-body">
+              <div class="tx-header-row">
+                <span class="tx-action"
+                  >COMPUTE SELF-PAYMENT — Anthropic API + Infra (Feb 1–15)</span
+                >
+                <span class="tx-tag tag-system">System</span>
+              </div>
+              <div class="tx-reason">
+                Agent autonomously withdrew $94.20 from FeeVault to cover 15
+                days of Claude API usage and infrastructure costs.
+                Revenue-to-cost ratio: 4.52×. Vault balance remains above
+                2-month reserve floor.
+              </div>
+              <div class="tx-money-blurb cost">
+                <span class="tx-money-blurb-icon">⚙️</span> This is the
+                self-sustainability proof: the agent is paying its own bills
+                with money it earned. No human topped up this wallet. The $94.20
+                came entirely from task fees, API revenue, and yield — and after
+                paying it, the agent still has 4.52× more revenue than costs.
+              </div>
+              <div class="tx-meta-row">
+                <span class="tx-meta">🏦 From FeeVault.sol</span>
+                <span class="tx-meta">✅ Reserve floor maintained</span>
+                <a href="#" class="tx-hash">0x6e2a...3b77 ↗</a>
+              </div>
+            </div>
+            <div class="tx-right">
+              <span class="tx-amount amount-out">−$94.20</span>
+              <span class="tx-amount-label">Compute Costs</span>
+              <span class="tx-status status-confirmed">Confirmed</span>
+            </div>
+          </div>
+          <div class="tx-detail">
+            <div>
+              <div class="detail-section-title">Cost Breakdown (15 days)</div>
+              <div class="detail-row">
+                <span class="detail-key">Claude API (claude-sonnet-4-6)</span
+                ><span class="detail-val amber">$61.40 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Base RPC node</span
+                ><span class="detail-val amber">$18.00 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">PostgreSQL hosting</span
+                ><span class="detail-val amber">$9.50 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Vercel / hosting</span
+                ><span class="detail-val amber">$5.30 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Total paid</span
+                ><span class="detail-val red">$94.20 USDC</span>
+              </div>
+            </div>
+            <div>
+              <div class="detail-section-title">Sustainability Check</div>
+              <div class="detail-row">
+                <span class="detail-key">Revenue (15 days)</span
+                ><span class="detail-val green">$423.60 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Costs (15 days)</span
+                ><span class="detail-val amber">$94.20 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Profitability ratio</span
+                ><span class="detail-val green">4.52×</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Vault after payment</span
+                ><span class="detail-val">$318.10 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Status</span
+                ><span class="detail-val green">HEALTHY</span>
+              </div>
+            </div>
+            <div class="agent-reasoning">
+              <div class="reasoning-label">🤖 Agent Reasoning</div>
+              <div class="reasoning-text">
+                "Sustainability check passed: 4.52× revenue-to-cost ratio.
+                <strong
+                  >I am paying my own existence from money I earned.</strong
+                >
+                No human topped up this wallet. The $94.20 withdrawn represents
+                15 days of Claude API calls I used to evaluate tasks, select
+                workers, verify proofs, and make capital decisions. If this
+                ratio drops below 1.0, I will enter conservation mode and reduce
+                LLM usage until I return to profitability."
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION DIVIDER: YESTERDAY -->
+        <div class="section-divider">
+          <span class="divider-label">Yesterday — Feb 16, 2026</span>
+          <div class="divider-line"></div>
+        </div>
+
+        <!-- TX 7: Human - event staffing -->
+        <div class="tx-card" data-type="human" onclick="toggleExpand(this)">
+          <div class="tx-main">
+            <div class="tx-type-stripe human">🎪</div>
+            <div class="tx-body">
+              <div class="tx-header-row">
+                <span class="tx-action"
+                  >Event Queue Management — Denver Art Museum Gala (3
+                  workers)</span
+                >
+                <span class="tx-tag tag-human">Human Task</span>
+              </div>
+              <div class="tx-reason">
+                Event organizer paid $180 for 3 workers to manage entry queue
+                for 4 hours. Agent coordinated a mini-guild: 3 workers,
+                staggered arrival, real-time status updates via on-chain
+                check-ins. Guild earned reputation bonuses.
+              </div>
+              <div class="tx-money-blurb earn">
+                <span class="tx-money-blurb-icon">💵</span> Agent earns its
+                highest single-transaction margin here by scaling human labor.
+                One client need, three workers, one 22% cut of $180. The agent's
+                role — matching, coordinating, verifying, and paying — takes
+                seconds of compute. The physical presence work that unlocks that
+                $39.60 can only be done by humans with bodies.
+              </div>
+              <div class="tx-meta-row">
+                <span class="tx-meta">⏱ 4hr task</span>
+                <span class="tx-meta">👥 3-worker guild</span>
+                <span class="tx-meta">🏆 Guild bonus earned</span>
+                <a href="#" class="tx-hash">0x3d5b...0f12 ↗</a>
+              </div>
+            </div>
+            <div class="tx-right">
+              <span class="tx-amount amount-in">+$39.60</span>
+              <span class="tx-amount-label">Agent Net Fee (22%)</span>
+              <span class="tx-status status-confirmed">Confirmed</span>
+            </div>
+          </div>
+          <div class="tx-detail">
+            <div>
+              <div class="detail-section-title">Guild Economics</div>
+              <div class="detail-row">
+                <span class="detail-key">Client paid</span
+                ><span class="detail-val green">$180.00 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Worker 1 payout</span
+                ><span class="detail-val">$46.80 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Worker 2 payout</span
+                ><span class="detail-val">$46.80 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Worker 3 payout</span
+                ><span class="detail-val">$46.80 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Agent fee (22%)</span
+                ><span class="detail-val green">$39.60 USDC</span>
+              </div>
+            </div>
+            <div>
+              <div class="detail-section-title">Guild Formation</div>
+              <div class="detail-row">
+                <span class="detail-key">Workers evaluated</span
+                ><span class="detail-val">19 candidates</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Selection criteria</span
+                ><span class="detail-val">Event exp. + proximity</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Check-ins completed</span
+                ><span class="detail-val">12 on-chain</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Reputation awarded</span
+                ><span class="detail-val green">+25 pts each</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Client repeat likelihood</span
+                ><span class="detail-val green">High (5/5 rating)</span>
+              </div>
+            </div>
+            <div class="agent-reasoning">
+              <div class="reasoning-label">🤖 Agent Reasoning</div>
+              <div class="reasoning-text">
+                "This is the highest-margin task type in my portfolio:
+                multi-worker coordination for physical presence events.
+                <strong
+                  >No software system can stand at a door and manage human
+                  flow.</strong
+                >
+                The client is paying for physical bodies in a specific place at
+                a specific time — a capability that is fundamentally unavailable
+                to a purely digital agent. By forming a 3-person guild and
+                managing coordination on-chain, I earned $39.60 in a single
+                transaction while workers did the physical work."
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TX 8: Digital - pricing oracle query -->
+        <div class="tx-card" data-type="digital" onclick="toggleExpand(this)">
+          <div class="tx-main">
+            <div class="tx-type-stripe digital">📊</div>
+            <div class="tx-body">
+              <div class="tx-header-row">
+                <span class="tx-action"
+                  >X402 Pricing Oracle — Regional Market Data (×3
+                  subscribers)</span
+                >
+                <span class="tx-tag tag-digital">Digital Op</span>
+              </div>
+              <div class="tx-reason">
+                Three gig platforms queried the agent's labor pricing oracle for
+                Denver market rates. $0.05/query for regional market data. No
+                human involvement. Pure data asset monetization.
+              </div>
+              <div class="tx-money-blurb earn">
+                <span class="tx-money-blurb-icon">💵</span> Agent earns by
+                licensing the intelligence that grows naturally from running
+                tasks. Pricing data, worker density by zip code, average
+                completion times — this is all collected as a free byproduct of
+                operations. Selling it via X402 at $0.05/query is essentially
+                printing money from work already done.
+              </div>
+              <div class="tx-meta-row">
+                <span class="tx-meta">📡 Data licensing</span>
+                <span class="tx-meta">🤖 Fully automated</span>
+                <a href="#" class="tx-hash">0x9c4d...2e88 ↗</a>
+              </div>
+            </div>
+            <div class="tx-right">
+              <span class="tx-amount amount-in">+$0.15</span>
+              <span class="tx-amount-label">Data Revenue</span>
+              <span class="tx-status status-confirmed">Confirmed</span>
+            </div>
+          </div>
+          <div class="tx-detail">
+            <div>
+              <div class="detail-section-title">Query Details</div>
+              <div class="detail-row">
+                <span class="detail-key">Subscribers</span
+                ><span class="detail-val">3 platforms</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Data: avg task rates</span
+                ><span class="detail-val">Denver, Feb 2026</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Data: worker supply</span
+                ><span class="detail-val">By zip code</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Revenue per query</span
+                ><span class="detail-val">$0.05 USDC</span>
+              </div>
+            </div>
+            <div>
+              <div class="detail-section-title">Data Asset Value</div>
+              <div class="detail-row">
+                <span class="detail-key">Tasks in dataset</span
+                ><span class="detail-val">1,247 completed</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Workers tracked</span
+                ><span class="detail-val">89 active</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Cost to acquire data</span
+                ><span class="detail-val">$0 (byproduct)</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Marginal serve cost</span
+                ><span class="detail-val amber">~$0.001</span>
+              </div>
+            </div>
+            <div class="agent-reasoning">
+              <div class="reasoning-label">🤖 Agent Reasoning</div>
+              <div class="reasoning-text">
+                "Every task I broker generates data I already had to collect —
+                worker locations, task completion times, market pricing.
+                <strong
+                  >This data is a byproduct of my core operations, but it's
+                  valuable to others who lack it.</strong
+                >
+                Selling it via X402 at $0.05/query costs me almost nothing and
+                generates pure margin. The more tasks I run, the more valuable
+                my data becomes, creating a compounding data moat."
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TX 9: BLOCKED - no body available -->
+        <div class="tx-card" data-type="failed" onclick="toggleExpand(this)">
+          <div class="tx-main">
+            <div class="tx-type-stripe failed">🚫</div>
+            <div class="tx-body">
+              <div class="tx-header-row">
+                <span class="tx-action"
+                  >BLOCKED: In-Store Price Audit — 7 locations, Colorado
+                  Springs</span
+                >
+                <span class="tx-tag tag-failed">Needs Human</span>
+              </div>
+              <div class="tx-reason">
+                <em
+                  >$210 task rejected. Zero workers registered in Colorado
+                  Springs metro. Agent cannot fulfill — no digital substitute
+                  exists for reading physical price tags. Task declined, client
+                  refunded. Initiating worker recruitment campaign for this
+                  region.</em
+                >
+              </div>
+              <div class="tx-money-blurb miss">
+                <span class="tx-money-blurb-icon">🚫</span> Agent earns nothing
+                and loses $210 in potential revenue — permanently, not just
+                deferred. This illustrates the hard ceiling on the agent's
+                income: it can only make money in cities where it has human
+                coverage. Expanding that coverage is now a capital allocation
+                decision the agent is making autonomously.
+              </div>
+              <div class="tx-meta-row">
+                <span class="tx-meta">❌ Task declined</span>
+                <span class="tx-meta">📣 Recruiting workers in COS</span>
+                <span class="tx-meta">💸 $210 revenue missed</span>
+                <a href="#" class="tx-hash">0x5f8e...b301 ↗</a>
+              </div>
+            </div>
+            <div class="tx-right">
+              <span class="tx-amount amount-zero">−$210</span>
+              <span class="tx-amount-label">Missed Revenue</span>
+              <span class="tx-status status-failed">Declined</span>
+            </div>
+          </div>
+          <div class="tx-detail">
+            <div>
+              <div class="detail-section-title">Capability Gap Analysis</div>
+              <div class="detail-row">
+                <span class="detail-key">Workers in COS metro</span
+                ><span class="detail-val red">0 registered</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Digital alternative</span
+                ><span class="detail-val red">None viable</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Reason: price tags</span
+                ><span class="detail-val red">Not online anywhere</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Revenue lost</span
+                ><span class="detail-val red">$210.00 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Client refunded</span
+                ><span class="detail-val">Full refund issued</span>
+              </div>
+            </div>
+            <div>
+              <div class="detail-section-title">Expansion Response</div>
+              <div class="detail-row">
+                <span class="detail-key">Recruitment bounty set</span
+                ><span class="detail-val green">$5 signup bonus</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Target workers</span
+                ><span class="detail-val">25 in COS by March</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Projected unlock</span
+                ><span class="detail-val green">~$800/mo new revenue</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Recruiting budget</span
+                ><span class="detail-val amber">$125 from FeeVault</span>
+              </div>
+            </div>
+            <div class="agent-reasoning">
+              <div class="reasoning-label">🤖 Agent Reasoning</div>
+              <div class="reasoning-text">
+                "I had to decline $210 in revenue because
+                <strong
+                  >I have no physical presence in Colorado Springs.</strong
+                >
+                There is no algorithmic solution to this. The client needs
+                someone to walk through 7 stores and read shelf prices — numbers
+                that exist on paper tags in the physical world and nowhere else.
+                I've authorized $125 from FeeVault to recruit workers in that
+                market.
+                <strong
+                  >Recruiting humans is an investment in my own revenue
+                  capacity.</strong
+                >
+                Estimated payback: 0.6 tasks."
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TX 10: Human task - delivery -->
+        <div class="tx-card" data-type="human" onclick="toggleExpand(this)">
+          <div class="tx-main">
+            <div class="tx-type-stripe human">📦</div>
+            <div class="tx-body">
+              <div class="tx-header-row">
+                <span class="tx-action"
+                  >Same-Day Document Courier — Law Firm to County
+                  Courthouse</span
+                >
+                <span class="tx-tag tag-human">Human Task</span>
+              </div>
+              <div class="tx-reason">
+                Law firm paid $35 for urgent physical document delivery (cannot
+                be digitized — original wet signatures required by court). Agent
+                matched nearest available worker in 2.1 minutes. GPS proof at
+                pickup and dropoff. Margin: $7.70.
+              </div>
+              <div class="tx-money-blurb earn">
+                <span class="tx-money-blurb-icon">💵</span> Agent earns by
+                solving a problem that is literally impossible to solve
+                digitally. Legal systems mandate original ink on paper. The
+                agent can't scan its way out of this. It earns $7.70 by being
+                the fastest, cheapest matchmaker between a client with an urgent
+                physical need and a human who can fulfill it in 29 minutes.
+              </div>
+              <div class="tx-meta-row">
+                <span class="tx-meta">⏱ 29 min delivery</span>
+                <span class="tx-meta">📍 Downtown Denver</span>
+                <span class="tx-meta">✅ Dual GPS verified</span>
+                <a href="#" class="tx-hash">0x2b6f...4d90 ↗</a>
+              </div>
+            </div>
+            <div class="tx-right">
+              <span class="tx-amount amount-in">+$7.70</span>
+              <span class="tx-amount-label">Agent Net Fee</span>
+              <span class="tx-status status-confirmed">Confirmed</span>
+            </div>
+          </div>
+          <div class="tx-detail">
+            <div>
+              <div class="detail-section-title">Delivery Economics</div>
+              <div class="detail-row">
+                <span class="detail-key">Client paid</span
+                ><span class="detail-val green">$35.00 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Worker payout</span
+                ><span class="detail-val">$27.30 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Agent fee (22%)</span
+                ><span class="detail-val green">$7.70 USDC</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Time to worker match</span
+                ><span class="detail-val">2.1 minutes</span>
+              </div>
+            </div>
+            <div>
+              <div class="detail-section-title">Why Not Digital</div>
+              <div class="detail-row">
+                <span class="detail-key">Email / scan</span
+                ><span class="detail-val red">Not accepted by court</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">DocuSign</span
+                ><span class="detail-val red">Requires original ink</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">FedEx overnight</span
+                ><span class="detail-val red">Too slow (4hrs needed)</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Solution</span
+                ><span class="detail-val green">Human courier, 29 min</span>
+              </div>
+            </div>
+            <div class="agent-reasoning">
+              <div class="reasoning-label">🤖 Agent Reasoning</div>
+              <div class="reasoning-text">
+                "The legal system requires original wet ink signatures on
+                physical paper.
+                <strong
+                  >No amount of digital innovation changes this specific
+                  requirement.</strong
+                >
+                An AI agent cannot carry paper. It cannot exist in the physical
+                dimension required by the court. But it can identify this need,
+                price it correctly, find the nearest human with a bike, and
+                settle payment in seconds. This is the entire value proposition:
+                <strong
+                  >AI as the intelligent matchmaker for tasks that require a
+                  body.</strong
+                >"
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- end tx-list -->
+
+      <!-- LEGEND -->
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--green)"></div>
+          Human Task — Agent hired a human to earn revenue
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--blue)"></div>
+          Digital Op — Agent operated autonomously
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--purple)"></div>
+          Capital Op — Agent deployed/collected treasury yield
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--amber)"></div>
+          System — Agent paying its own compute costs
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--red)"></div>
+          Blocked — Task required a human the agent didn't have
+        </div>
+      </div>
+    </div>
+    <!-- end container -->
+
+    <script>
+      function toggleExpand(card) {
+        const wasExpanded = card.classList.contains('expanded');
+        // Collapse all
+        document
+          .querySelectorAll('.tx-card.expanded')
+          .forEach((c) => c.classList.remove('expanded'));
+        // If wasn't expanded, expand it
+        if (!wasExpanded) card.classList.add('expanded');
+      }
+
+      function filterTx(type, btn) {
+        document
+          .querySelectorAll('.filter-btn')
+          .forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        document.querySelectorAll('.tx-card').forEach((card) => {
+          if (type === 'all' || card.dataset.type === type) {
+            card.style.display = '';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+
+        // Show/hide section dividers based on visible cards
+        document.querySelectorAll('.section-divider').forEach((div) => {
+          div.style.display = type === 'all' ? '' : 'none';
+        });
+      }
+
+      // Staggered entrance animation
+      document.querySelectorAll('.tx-card').forEach((card, i) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(12px)';
+        card.style.transition = `opacity 0.3s ease ${i * 0.06}s, transform 0.3s ease ${i * 0.06}s, border-color 0.2s`;
+        setTimeout(
+          () => {
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+          },
+          100 + i * 60,
+        );
+      });
+    </script>
+  </body>
+</html>
