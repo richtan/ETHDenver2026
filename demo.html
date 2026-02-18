@@ -1,0 +1,1713 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgentWork — Hire the Agent</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=DM+Sans:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --cream: #f5f0e8;
+        --cream-dark: #ece6d8;
+        --ink: #0f0e0b;
+        --ink-mid: #2a2820;
+        --ink-soft: #4a4840;
+        --muted: #8a8678;
+        --border: #d8d0be;
+        --border-dark: #b8b0a0;
+        --gold: #c8922a;
+        --gold-light: #e8b84a;
+        --gold-dim: rgba(200, 146, 42, 0.12);
+        --gold-border: rgba(200, 146, 42, 0.3);
+        --green: #2d6a4f;
+        --green-light: #40916c;
+        --green-dim: rgba(45, 106, 79, 0.1);
+        --red: #9b2335;
+        --red-dim: rgba(155, 35, 53, 0.08);
+        --blue: #1a4a7a;
+        --blue-dim: rgba(26, 74, 122, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: var(--cream);
+        color: var(--ink);
+        font-family: 'DM Sans', sans-serif;
+        min-height: 100vh;
+      }
+
+      /* ── NOISE TEXTURE ── */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.4;
+      }
+
+      /* ── NAV ── */
+      nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: var(--cream);
+        border-bottom: 1px solid var(--border);
+        padding: 0 40px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 60px;
+      }
+
+      .nav-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .nav-logo-mark {
+        width: 28px;
+        height: 28px;
+        background: var(--ink);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Playfair Display', serif;
+        font-size: 14px;
+        font-weight: 900;
+        color: var(--gold-light);
+      }
+
+      .nav-logo-text {
+        font-family: 'Playfair Display', serif;
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+      }
+
+      .nav-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--green-light);
+        box-shadow: 0 0 6px var(--green-light);
+        animation: pulse 2.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .nav-right {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .nav-link {
+        font-size: 13px;
+        color: var(--ink-soft);
+        text-decoration: none;
+        font-weight: 400;
+        letter-spacing: 0.01em;
+      }
+
+      .nav-cta {
+        background: var(--ink);
+        color: var(--cream);
+        padding: 8px 20px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        text-decoration: none;
+        letter-spacing: 0.01em;
+        transition: background 0.15s;
+      }
+
+      .nav-cta:hover {
+        background: var(--ink-mid);
+      }
+
+      /* ── HERO ── */
+      .hero {
+        position: relative;
+        z-index: 1;
+        padding: 80px 40px 60px;
+        max-width: 1200px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        gap: 60px;
+        align-items: start;
+      }
+
+      .hero-eyebrow {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--gold);
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .hero-eyebrow::before {
+        content: '';
+        display: block;
+        width: 32px;
+        height: 1px;
+        background: var(--gold);
+      }
+
+      h1 {
+        font-family: 'Playfair Display', serif;
+        font-size: clamp(38px, 5vw, 64px);
+        font-weight: 900;
+        line-height: 1.04;
+        letter-spacing: -0.03em;
+        color: var(--ink);
+        margin-bottom: 24px;
+      }
+
+      h1 em {
+        font-style: italic;
+        color: var(--gold);
+      }
+
+      .hero-body {
+        font-size: 16px;
+        line-height: 1.7;
+        color: var(--ink-soft);
+        max-width: 500px;
+        font-weight: 300;
+        margin-bottom: 36px;
+      }
+
+      .hero-stats {
+        display: flex;
+        gap: 32px;
+      }
+
+      .hero-stat {
+        border-left: 2px solid var(--border-dark);
+        padding-left: 16px;
+      }
+
+      .hero-stat-val {
+        font-family: 'Playfair Display', serif;
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+      }
+
+      .hero-stat-val.gold {
+        color: var(--gold);
+      }
+
+      .hero-stat-label {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-top: 2px;
+      }
+
+      /* Live activity card */
+      .live-card {
+        background: var(--ink);
+        border-radius: 12px;
+        padding: 24px;
+        color: var(--cream);
+        position: sticky;
+        top: 80px;
+      }
+
+      .live-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+
+      .live-card-title {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--muted);
+      }
+
+      .live-badge {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        color: var(--gold-light);
+        letter-spacing: 0.08em;
+      }
+
+      .live-badge::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--gold-light);
+        box-shadow: 0 0 8px var(--gold-light);
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      .live-task {
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        animation: slideIn 0.4s ease forwards;
+        opacity: 0;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      .live-task:last-child {
+        border-bottom: none;
+      }
+
+      .live-task-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 5px;
+      }
+
+      .live-task-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: #e8e4dc;
+        line-height: 1.4;
+      }
+
+      .live-task-amount {
+        font-family: 'DM Mono', monospace;
+        font-size: 12px;
+        color: var(--gold-light);
+        flex-shrink: 0;
+        font-weight: 400;
+      }
+
+      .live-task-meta {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        color: var(--muted);
+      }
+
+      .live-task-status {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 3px;
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-top: 6px;
+      }
+
+      .status-running {
+        background: rgba(64, 145, 108, 0.2);
+        color: #6fcf97;
+      }
+      .status-complete {
+        background: rgba(200, 146, 42, 0.15);
+        color: var(--gold-light);
+      }
+      .status-pending {
+        background: rgba(255, 255, 255, 0.08);
+        color: #aaa;
+      }
+
+      /* ── SECTION ── */
+      .section {
+        position: relative;
+        z-index: 1;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 40px 80px;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 32px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .section-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+
+      .section-sub {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+      }
+
+      /* ── SERVICE CARDS ── */
+      .services-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+        background: var(--border);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 4px;
+      }
+
+      .service-card {
+        background: var(--cream);
+        padding: 28px;
+        cursor: pointer;
+        transition: background 0.15s;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .service-card:hover {
+        background: #f0ebe0;
+      }
+
+      .service-card.featured {
+        background: var(--ink);
+        color: var(--cream);
+      }
+
+      .service-card.featured:hover {
+        background: var(--ink-mid);
+      }
+
+      .service-card::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--gold);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.2s;
+      }
+
+      .service-card:hover::after {
+        transform: scaleX(1);
+      }
+
+      .service-icon {
+        font-size: 24px;
+        margin-bottom: 14px;
+        display: block;
+      }
+
+      .service-name {
+        font-family: 'Playfair Display', serif;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-bottom: 8px;
+        color: inherit;
+      }
+
+      .service-card.featured .service-name {
+        color: var(--cream);
+      }
+
+      .service-desc {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--ink-soft);
+        font-weight: 300;
+        margin-bottom: 18px;
+      }
+
+      .service-card.featured .service-desc {
+        color: rgba(245, 240, 232, 0.6);
+      }
+
+      .service-tasks {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-bottom: 20px;
+      }
+
+      .service-task-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--ink-soft);
+        font-weight: 400;
+      }
+
+      .service-card.featured .service-task-item {
+        color: rgba(245, 240, 232, 0.7);
+      }
+
+      .service-task-item::before {
+        content: '';
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--gold);
+        flex-shrink: 0;
+      }
+
+      .service-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 18px;
+        border-top: 1px solid var(--border);
+      }
+
+      .service-card.featured .service-footer {
+        border-top-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .service-price {
+        font-family: 'DM Mono', monospace;
+        font-size: 13px;
+        color: var(--gold);
+        font-weight: 400;
+      }
+
+      .service-time {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        color: var(--muted);
+      }
+
+      .service-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--ink);
+        background: transparent;
+        border: 1px solid var(--border-dark);
+        padding: 7px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-decoration: none;
+        letter-spacing: 0.01em;
+      }
+
+      .service-cta:hover {
+        background: var(--ink);
+        color: var(--cream);
+        border-color: var(--ink);
+      }
+
+      .service-card.featured .service-cta {
+        background: var(--gold);
+        color: var(--ink);
+        border-color: var(--gold);
+      }
+
+      .service-card.featured .service-cta:hover {
+        background: var(--gold-light);
+        border-color: var(--gold-light);
+      }
+
+      .service-badge {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 3px;
+        background: var(--gold);
+        color: var(--ink);
+        font-weight: 500;
+      }
+
+      /* ── DIGITAL SERVICES ROW ── */
+      .digital-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2px;
+        background: var(--border);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .digital-card {
+        background: var(--cream);
+        padding: 22px;
+        cursor: pointer;
+        transition: background 0.15s;
+        position: relative;
+      }
+
+      .digital-card:hover {
+        background: #f0ebe0;
+      }
+
+      .digital-card-icon {
+        font-size: 20px;
+        margin-bottom: 12px;
+      }
+
+      .digital-card-name {
+        font-family: 'Playfair Display', serif;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--ink);
+        margin-bottom: 6px;
+        letter-spacing: -0.01em;
+      }
+
+      .digital-card-desc {
+        font-size: 12px;
+        color: var(--ink-soft);
+        line-height: 1.5;
+        font-weight: 300;
+        margin-bottom: 14px;
+      }
+
+      .digital-card-price {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--gold);
+      }
+
+      .digital-new-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        font-family: 'DM Mono', monospace;
+        font-size: 8px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 2px 7px;
+        border-radius: 3px;
+        background: var(--green-dim);
+        color: var(--green-light);
+        border: 1px solid rgba(45, 106, 79, 0.2);
+      }
+
+      /* ── HOW IT WORKS ── */
+      .how-it-works {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .how-step {
+        padding: 28px;
+        border-right: 1px solid var(--border);
+        position: relative;
+      }
+
+      .how-step:last-child {
+        border-right: none;
+      }
+
+      .how-step-num {
+        font-family: 'Playfair Display', serif;
+        font-size: 48px;
+        font-weight: 900;
+        color: var(--cream-dark);
+        line-height: 1;
+        margin-bottom: 12px;
+        letter-spacing: -0.04em;
+      }
+
+      .how-step-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--ink);
+        margin-bottom: 8px;
+        letter-spacing: -0.01em;
+      }
+
+      .how-step-desc {
+        font-size: 13px;
+        color: var(--ink-soft);
+        line-height: 1.6;
+        font-weight: 300;
+      }
+
+      .how-step-arrow {
+        position: absolute;
+        right: -10px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 2;
+        width: 20px;
+        height: 20px;
+        background: var(--cream);
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        color: var(--muted);
+      }
+
+      .how-step:last-child .how-step-arrow {
+        display: none;
+      }
+
+      /* ── PRICING TIER ── */
+      .pricing-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+
+      .pricing-card {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 28px;
+        background: white;
+        position: relative;
+      }
+
+      .pricing-card.recommended {
+        border-color: var(--gold);
+        background: var(--ink);
+        color: var(--cream);
+      }
+
+      .pricing-rec-badge {
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--gold);
+        color: var(--ink);
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 3px 12px;
+        border-radius: 10px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      .pricing-name {
+        font-family: 'Playfair Display', serif;
+        font-size: 20px;
+        font-weight: 700;
+        color: inherit;
+        margin-bottom: 6px;
+        letter-spacing: -0.02em;
+      }
+
+      .pricing-tagline {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 20px;
+        font-weight: 300;
+      }
+
+      .pricing-card.recommended .pricing-tagline {
+        color: rgba(245, 240, 232, 0.5);
+      }
+
+      .pricing-amount {
+        font-family: 'Playfair Display', serif;
+        font-size: 36px;
+        font-weight: 900;
+        color: inherit;
+        letter-spacing: -0.03em;
+        margin-bottom: 4px;
+      }
+
+      .pricing-period {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 24px;
+      }
+
+      .pricing-card.recommended .pricing-period {
+        color: rgba(245, 240, 232, 0.4);
+      }
+
+      .pricing-features {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 24px;
+      }
+
+      .pricing-feature {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--ink-soft);
+        font-weight: 300;
+        line-height: 1.4;
+      }
+
+      .pricing-card.recommended .pricing-feature {
+        color: rgba(245, 240, 232, 0.7);
+      }
+
+      .pricing-feature::before {
+        content: '✓';
+        color: var(--gold);
+        font-weight: 700;
+        flex-shrink: 0;
+        font-size: 12px;
+        margin-top: 1px;
+      }
+
+      .pricing-btn {
+        width: 100%;
+        padding: 12px;
+        border-radius: 7px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+        letter-spacing: 0.01em;
+        border: 1px solid var(--border-dark);
+        background: transparent;
+        color: var(--ink);
+      }
+
+      .pricing-btn:hover {
+        background: var(--ink);
+        color: var(--cream);
+        border-color: var(--ink);
+      }
+
+      .pricing-card.recommended .pricing-btn {
+        background: var(--gold);
+        color: var(--ink);
+        border-color: var(--gold);
+      }
+
+      .pricing-card.recommended .pricing-btn:hover {
+        background: var(--gold-light);
+        border-color: var(--gold-light);
+      }
+
+      /* ── MODAL OVERLAY ── */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 14, 11, 0.7);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        backdrop-filter: blur(4px);
+      }
+
+      .modal-overlay.open {
+        opacity: 1;
+        pointer-events: all;
+      }
+
+      .modal {
+        background: var(--cream);
+        border-radius: 16px;
+        width: 560px;
+        max-width: calc(100vw - 40px);
+        max-height: calc(100vh - 80px);
+        overflow-y: auto;
+        padding: 36px;
+        transform: translateY(20px);
+        transition: transform 0.2s;
+      }
+
+      .modal-overlay.open .modal {
+        transform: translateY(0);
+      }
+
+      .modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 24px;
+      }
+
+      .modal-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+      }
+
+      .modal-close {
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        font-size: 16px;
+        color: var(--muted);
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+
+      .modal-close:hover {
+        background: var(--ink);
+        color: var(--cream);
+        border-color: var(--ink);
+      }
+
+      .modal-field {
+        margin-bottom: 18px;
+      }
+
+      .modal-label {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 7px;
+        display: block;
+      }
+
+      .modal-input,
+      .modal-textarea,
+      .modal-select {
+        width: 100%;
+        padding: 11px 14px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 14px;
+        color: var(--ink);
+        background: white;
+        transition: border-color 0.15s;
+        outline: none;
+      }
+
+      .modal-input:focus,
+      .modal-textarea:focus,
+      .modal-select:focus {
+        border-color: var(--gold);
+      }
+
+      .modal-textarea {
+        resize: vertical;
+        min-height: 80px;
+      }
+
+      .modal-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .modal-summary {
+        background: var(--ink);
+        border-radius: 8px;
+        padding: 16px;
+        margin: 24px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .modal-summary-label {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .modal-summary-amount {
+        font-family: 'Playfair Display', serif;
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--gold-light);
+      }
+
+      .modal-submit {
+        width: 100%;
+        padding: 14px;
+        background: var(--ink);
+        color: var(--cream);
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s;
+        letter-spacing: 0.01em;
+      }
+
+      .modal-submit:hover {
+        background: var(--ink-mid);
+      }
+
+      /* ── FOOTER ── */
+      footer {
+        position: relative;
+        z-index: 1;
+        border-top: 1px solid var(--border);
+        padding: 28px 40px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .footer-note {
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .footer-chain {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: 'DM Mono', monospace;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      @media (max-width: 900px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+        .live-card {
+          display: none;
+        }
+        .services-grid {
+          grid-template-columns: 1fr;
+        }
+        .digital-row {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .how-it-works {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .pricing-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- NAV -->
+    <nav>
+      <div class="nav-logo">
+        <div class="nav-logo-mark">A</div>
+        <span class="nav-logo-text">AgentWork</span>
+      </div>
+      <div class="nav-status">
+        <div class="status-dot"></div>
+        Agent Online · Base Mainnet
+      </div>
+      <div class="nav-right">
+        <a href="#services" class="nav-link">Services</a>
+        <a href="#pricing" class="nav-link">Pricing</a>
+        <a href="#" class="nav-link">Docs</a>
+        <a href="#" class="nav-cta">Hire Agent →</a>
+      </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div>
+        <div class="hero-eyebrow">Autonomous Operations on Base</div>
+        <h1>Your AI ops team.<br /><em>Now with hands.</em></h1>
+        <p class="hero-body">
+          AgentWork is an autonomous AI agent you hire to run operations —
+          digital <em>and</em> physical. Brief it once. It handles research,
+          logistics, field data collection, and human dispatch. Pay in USDC.
+          Every action verified on-chain.
+        </p>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <div class="hero-stat-val gold">1,247</div>
+            <div class="hero-stat-label">Tasks completed</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-val">89</div>
+            <div class="hero-stat-label">Field workers</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-val">7</div>
+            <div class="hero-stat-label">Cities covered</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-val gold">4.9★</div>
+            <div class="hero-stat-label">Avg task rating</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live activity -->
+      <div class="live-card">
+        <div class="live-card-header">
+          <span class="live-card-title">Live Activity</span>
+          <span class="live-badge">LIVE</span>
+        </div>
+        <div class="live-task" style="animation-delay: 0.1s">
+          <div class="live-task-top">
+            <span class="live-task-name"
+              >Retail shelf audit — Walgreens #4471</span
+            >
+            <span class="live-task-amount">$28</span>
+          </div>
+          <div class="live-task-meta">RestockIQ · Denver CO</div>
+          <div class="live-task-status status-running">In Progress</div>
+        </div>
+        <div class="live-task" style="animation-delay: 0.2s">
+          <div class="live-task-top">
+            <span class="live-task-name"
+              >Property condition report — 2847 Larimer</span
+            >
+            <span class="live-task-amount">$42</span>
+          </div>
+          <div class="live-task-meta">PropStream API · Denver CO</div>
+          <div class="live-task-status status-complete">Complete ✓</div>
+        </div>
+        <div class="live-task" style="animation-delay: 0.3s">
+          <div class="live-task-top">
+            <span class="live-task-name"
+              >Competitor pricing walk — 12 SKUs</span
+            >
+            <span class="live-task-amount">$48</span>
+          </div>
+          <div class="live-task-meta">FreshMart · Austin TX</div>
+          <div class="live-task-status status-running">In Progress</div>
+        </div>
+        <div class="live-task" style="animation-delay: 0.4s">
+          <div class="live-task-top">
+            <span class="live-task-name"
+              >Market research synthesis — Q1 trends</span
+            >
+            <span class="live-task-amount">$18</span>
+          </div>
+          <div class="live-task-meta">Vantage Capital · Remote</div>
+          <div class="live-task-status status-complete">Complete ✓</div>
+        </div>
+        <div class="live-task" style="animation-delay: 0.5s">
+          <div class="live-task-top">
+            <span class="live-task-name"
+              >Event staff — 3 workers, Wash Park</span
+            >
+            <span class="live-task-amount">$180</span>
+          </div>
+          <div class="live-task-meta">Bloom & Gather · Denver CO</div>
+          <div class="live-task-status status-pending">Dispatching…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SERVICES -->
+    <section class="section" id="services">
+      <div class="section-header">
+        <h2 class="section-title">Physical World Services</h2>
+        <span class="section-sub"
+          >Capabilities that weren't possible before</span
+        >
+      </div>
+
+      <div class="services-grid">
+        <!-- Field Intelligence -->
+        <div class="service-card" onclick="openModal('field')">
+          <span class="service-icon">🔍</span>
+          <div class="service-name">Field Intelligence</div>
+          <div class="service-desc">
+            Ground-truth data collection from the physical world. Retail audits,
+            property reports, competitor pricing — real data from real
+            locations.
+          </div>
+          <div class="service-tasks">
+            <div class="service-task-item">
+              Retail shelf & compliance audits
+            </div>
+            <div class="service-task-item">Competitor in-store price walks</div>
+            <div class="service-task-item">Property condition reports</div>
+            <div class="service-task-item">Menu photography & updates</div>
+            <div class="service-task-item">Parking & occupancy surveys</div>
+          </div>
+          <div class="service-footer">
+            <div>
+              <div class="service-price">From $25 / task</div>
+              <div class="service-time">⏱ 1–4 hours</div>
+            </div>
+            <button class="service-cta">Request →</button>
+          </div>
+        </div>
+
+        <!-- Physical Operations — FEATURED -->
+        <div class="service-card featured" onclick="openModal('ops')">
+          <div class="service-badge">Most Popular</div>
+          <span class="service-icon">⚙️</span>
+          <div class="service-name">Physical Operations</div>
+          <div class="service-desc">
+            The agent manages end-to-end physical tasks. You describe what needs
+            to happen. It dispatches verified workers and handles everything
+            else.
+          </div>
+          <div class="service-tasks">
+            <div class="service-task-item">
+              Event setup, staffing & teardown
+            </div>
+            <div class="service-task-item">Same-day document courier</div>
+            <div class="service-task-item">Pop-up shop management</div>
+            <div class="service-task-item">Distribution & flyer campaigns</div>
+            <div class="service-task-item">Multi-site coordination guilds</div>
+          </div>
+          <div class="service-footer">
+            <div>
+              <div class="service-price">From $35 / task</div>
+              <div class="service-time">⏱ Same day</div>
+            </div>
+            <button class="service-cta">Request →</button>
+          </div>
+        </div>
+
+        <!-- Compliance & Inspection -->
+        <div class="service-card" onclick="openModal('compliance')">
+          <span class="service-icon">📋</span>
+          <div class="service-name">Compliance & Inspection</div>
+          <div class="service-desc">
+            Regulatory audits, damage assessments, and certification checks.
+            High-trust workers, structured checklists, defensible proof
+            on-chain.
+          </div>
+          <div class="service-tasks">
+            <div class="service-task-item">ADA accessibility field audits</div>
+            <div class="service-task-item">Insurance damage assessments</div>
+            <div class="service-task-item">Health & safety walkthroughs</div>
+            <div class="service-task-item">Building condition surveys</div>
+            <div class="service-task-item">Vacancy & occupancy checks</div>
+          </div>
+          <div class="service-footer">
+            <div>
+              <div class="service-price">From $65 / task</div>
+              <div class="service-time">⏱ 2–6 hours</div>
+            </div>
+            <button class="service-cta">Request →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Digital Services Row -->
+      <div style="margin-top: 24px; margin-bottom: 12px">
+        <div
+          class="section-header"
+          style="margin-bottom: 16px; padding-bottom: 12px"
+        >
+          <h2 class="section-title" style="font-size: 20px">
+            Digital Services
+          </h2>
+          <span class="section-sub">Always available · Instant execution</span>
+        </div>
+      </div>
+
+      <div class="digital-row">
+        <div class="digital-card" onclick="openModal('research')">
+          <div class="digital-card-icon">🧠</div>
+          <div class="digital-card-name">Research & Analysis</div>
+          <div class="digital-card-desc">
+            Deep-dive reports, market analysis, competitive intelligence,
+            literature reviews.
+          </div>
+          <div class="digital-card-price">From $8 / report</div>
+        </div>
+        <div class="digital-card" onclick="openModal('data')">
+          <div class="digital-new-badge">New</div>
+          <div class="digital-card-icon">📊</div>
+          <div class="digital-card-name">Data Processing</div>
+          <div class="digital-card-desc">
+            Clean, transform, and analyze datasets. Structured output delivered
+            via API or file.
+          </div>
+          <div class="digital-card-price">From $5 / dataset</div>
+        </div>
+        <div class="digital-card" onclick="openModal('content')">
+          <div class="digital-card-icon">✍️</div>
+          <div class="digital-card-name">Content & Copy</div>
+          <div class="digital-card-desc">
+            Long-form writing, product descriptions, email sequences, social
+            content calendars.
+          </div>
+          <div class="digital-card-price">From $6 / piece</div>
+        </div>
+        <div class="digital-card" onclick="openModal('automation')">
+          <div class="digital-new-badge">New</div>
+          <div class="digital-card-icon">🔗</div>
+          <div class="digital-card-name">Business Automation</div>
+          <div class="digital-card-desc">
+            Recurring workflows — weekly reports, monitoring dashboards,
+            scheduled ops pipelines.
+          </div>
+          <div class="digital-card-price">From $15 / month</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">How it works</h2>
+        <span class="section-sub">Brief → pay → done</span>
+      </div>
+      <div class="how-it-works">
+        <div class="how-step">
+          <div class="how-step-arrow">→</div>
+          <div class="how-step-num">01</div>
+          <div class="how-step-title">Describe your need</div>
+          <div class="how-step-desc">
+            Tell the agent what you need done — physical or digital — in plain
+            language. No forms, no spec docs.
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-step-arrow">→</div>
+          <div class="how-step-num">02</div>
+          <div class="how-step-title">Agent plans & prices</div>
+          <div class="how-step-desc">
+            Claude evaluates the task, decides if it needs workers, selects the
+            right ones, and quotes you a price in USDC.
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-step-arrow">→</div>
+          <div class="how-step-num">03</div>
+          <div class="how-step-title">Pay into escrow</div>
+          <div class="how-step-desc">
+            You deposit USDC into TaskEscrow.sol. Funds are locked until the
+            task is verified complete. Zero trust required.
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-step-num">04</div>
+          <div class="how-step-title">Proof & delivery</div>
+          <div class="how-step-desc">
+            Every task generates GPS stamps, photos, or structured data as
+            on-chain proof. Results delivered. Worker paid. Done.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRICING -->
+    <section class="section" id="pricing">
+      <div class="section-header">
+        <h2 class="section-title">Subscription Plans</h2>
+        <span class="section-sub">For businesses with recurring needs</span>
+      </div>
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="pricing-name">Starter</div>
+          <div class="pricing-tagline">For teams just getting started</div>
+          <div class="pricing-amount">$99</div>
+          <div class="pricing-period">/ month in USDC</div>
+          <ul class="pricing-features">
+            <li class="pricing-feature">10 physical tasks / month</li>
+            <li class="pricing-feature">Unlimited digital tasks</li>
+            <li class="pricing-feature">3 cities covered</li>
+            <li class="pricing-feature">48hr task SLA</li>
+            <li class="pricing-feature">Photo + GPS proof</li>
+            <li class="pricing-feature">API access</li>
+          </ul>
+          <button class="pricing-btn" onclick="openModal('starter')">
+            Get started
+          </button>
+        </div>
+
+        <div class="pricing-card recommended">
+          <div class="pricing-rec-badge">Most Popular</div>
+          <div class="pricing-name">Business</div>
+          <div class="pricing-tagline">For ops teams running at scale</div>
+          <div class="pricing-amount">$349</div>
+          <div class="pricing-period">/ month in USDC</div>
+          <ul class="pricing-features">
+            <li class="pricing-feature">50 physical tasks / month</li>
+            <li class="pricing-feature">Unlimited digital tasks</li>
+            <li class="pricing-feature">All 7 cities covered</li>
+            <li class="pricing-feature">4hr urgent task SLA</li>
+            <li class="pricing-feature">Structured data output</li>
+            <li class="pricing-feature">Recurring task scheduling</li>
+            <li class="pricing-feature">Webhook integrations</li>
+            <li class="pricing-feature">Priority worker selection</li>
+          </ul>
+          <button class="pricing-btn" onclick="openModal('business')">
+            Subscribe →
+          </button>
+        </div>
+
+        <div class="pricing-card">
+          <div class="pricing-name">Enterprise</div>
+          <div class="pricing-tagline">Custom volume & cities</div>
+          <div class="pricing-amount">Custom</div>
+          <div class="pricing-period">volume pricing in USDC</div>
+          <ul class="pricing-features">
+            <li class="pricing-feature">Unlimited physical tasks</li>
+            <li class="pricing-feature">Custom city expansion</li>
+            <li class="pricing-feature">Dedicated worker guilds</li>
+            <li class="pricing-feature">1hr emergency SLA</li>
+            <li class="pricing-feature">White-label API</li>
+            <li class="pricing-feature">On-chain SLA enforcement</li>
+            <li class="pricing-feature">Custom proof schemas</li>
+          </ul>
+          <button class="pricing-btn" onclick="openModal('enterprise')">
+            Contact agent
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span class="footer-note"
+        >AgentWork Protocol — Autonomous ops agent on Base Mainnet</span
+      >
+      <span class="footer-chain"
+        >⬡ Base · 0x3f4a...c7e2 · ERC-8021 Registered</span
+      >
+    </footer>
+
+    <!-- MODAL -->
+    <div
+      class="modal-overlay"
+      id="modalOverlay"
+      onclick="closeModalOnOverlay(event)"
+    >
+      <div class="modal" id="modal">
+        <div class="modal-header">
+          <div class="modal-title" id="modalTitle">Request Service</div>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-label">Service Type</label>
+          <select class="modal-select" id="modalService">
+            <option value="">Select a service…</option>
+            <optgroup label="Physical Services">
+              <option value="field_audit">Retail / Field Audit</option>
+              <option value="competitor_pricing">Competitor Price Walk</option>
+              <option value="property_report">Property Condition Report</option>
+              <option value="event_staffing">Event Staffing</option>
+              <option value="document_courier">Document Courier</option>
+              <option value="damage_assessment">Damage Assessment</option>
+              <option value="accessibility_audit">
+                ADA Accessibility Audit
+              </option>
+              <option value="menu_photography">Menu Photography</option>
+            </optgroup>
+            <optgroup label="Digital Services">
+              <option value="research">Research & Analysis</option>
+              <option value="data_processing">Data Processing</option>
+              <option value="content">Content & Copy</option>
+              <option value="automation">Business Automation</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-label">Describe the task</label>
+          <textarea
+            class="modal-textarea"
+            id="modalDesc"
+            placeholder="e.g. I need shelf photos of our 3 SKUs at 5 Walgreens locations in Denver, with GPS stamps and price verification…"
+          ></textarea>
+        </div>
+
+        <div class="modal-row">
+          <div class="modal-field">
+            <label class="modal-label">Location / City</label>
+            <input
+              class="modal-input"
+              id="modalCity"
+              type="text"
+              placeholder="Denver, CO"
+            />
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">Deadline</label>
+            <input
+              class="modal-input"
+              id="modalDeadline"
+              type="text"
+              placeholder="e.g. Today by 5pm"
+            />
+          </div>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-label"
+            >Your wallet address (for on-chain escrow)</label
+          >
+          <input
+            class="modal-input"
+            id="modalWallet"
+            type="text"
+            placeholder="0x..."
+          />
+        </div>
+
+        <div class="modal-summary">
+          <div>
+            <div class="modal-summary-label">Estimated cost</div>
+            <div class="modal-summary-amount" id="modalAmount">$— USDC</div>
+          </div>
+          <div style="text-align: right">
+            <div class="modal-summary-label">Est. completion</div>
+            <div
+              style="
+                color: #e8e4dc;
+                font-family: 'DM Mono', monospace;
+                font-size: 13px;
+              "
+              id="modalETA"
+            >
+              —
+            </div>
+          </div>
+        </div>
+
+        <button class="modal-submit" onclick="submitTask()">
+          Submit task & lock escrow →
+        </button>
+      </div>
+    </div>
+
+    <script>
+      // Service pricing + ETA data
+      const SERVICE_DATA = {
+        field: {
+          title: 'Field Intelligence',
+          price: '$35–80 USDC',
+          eta: '2–4 hours',
+        },
+        ops: {
+          title: 'Physical Operations',
+          price: '$35–180 USDC',
+          eta: 'Same day',
+        },
+        compliance: {
+          title: 'Compliance & Inspection',
+          price: '$65–120 USDC',
+          eta: '2–6 hours',
+        },
+        research: {
+          title: 'Research & Analysis',
+          price: '$8–25 USDC',
+          eta: '30–90 min',
+        },
+        data: {
+          title: 'Data Processing',
+          price: '$5–20 USDC',
+          eta: '15–60 min',
+        },
+        content: {
+          title: 'Content & Copy',
+          price: '$6–30 USDC',
+          eta: '20–90 min',
+        },
+        automation: {
+          title: 'Business Automation',
+          price: '$15–60 USDC/mo',
+          eta: '1–2 hours setup',
+        },
+        starter: {
+          title: 'Starter Plan',
+          price: '$99 USDC/month',
+          eta: 'Instant activation',
+        },
+        business: {
+          title: 'Business Plan',
+          price: '$349 USDC/month',
+          eta: 'Instant activation',
+        },
+        enterprise: {
+          title: 'Enterprise Plan',
+          price: 'Custom',
+          eta: 'Agent will respond within 1hr',
+        },
+      };
+
+      const SERVICE_OPTION_MAP = {
+        field_audit: 'field',
+        competitor_pricing: 'field',
+        property_report: 'field',
+        event_staffing: 'ops',
+        document_courier: 'ops',
+        damage_assessment: 'compliance',
+        accessibility_audit: 'compliance',
+        menu_photography: 'field',
+        research: 'research',
+        data_processing: 'data',
+        content: 'content',
+        automation: 'automation',
+      };
+
+      function openModal(type) {
+        const overlay = document.getElementById('modalOverlay');
+        const data = SERVICE_DATA[type];
+        if (data) {
+          document.getElementById('modalTitle').textContent =
+            `Request: ${data.title}`;
+          document.getElementById('modalAmount').textContent = data.price;
+          document.getElementById('modalETA').textContent = data.eta;
+          // Pre-select the service
+          const select = document.getElementById('modalService');
+          for (let opt of select.options) {
+            if (SERVICE_OPTION_MAP[opt.value] === type) {
+              opt.selected = true;
+              break;
+            }
+          }
+        }
+        overlay.classList.add('open');
+      }
+
+      function closeModal() {
+        document.getElementById('modalOverlay').classList.remove('open');
+      }
+
+      function closeModalOnOverlay(e) {
+        if (e.target === document.getElementById('modalOverlay')) closeModal();
+      }
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+      });
+
+      // Update price estimate when service changes
+      document
+        .getElementById('modalService')
+        .addEventListener('change', function () {
+          const type = SERVICE_OPTION_MAP[this.value];
+          const data = SERVICE_DATA[type];
+          if (data) {
+            document.getElementById('modalAmount').textContent = data.price;
+            document.getElementById('modalETA').textContent = data.eta;
+          }
+        });
+
+      function submitTask() {
+        const service = document.getElementById('modalService').value;
+        const desc = document.getElementById('modalDesc').value;
+        const city = document.getElementById('modalCity').value;
+
+        if (!service || !desc) {
+          alert('Please select a service and describe the task.');
+          return;
+        }
+
+        const btn = document.querySelector('.modal-submit');
+        btn.textContent = '⏳ Agent evaluating task…';
+        btn.disabled = true;
+
+        setTimeout(() => {
+          btn.textContent = '✓ Task submitted — escrow pending';
+          btn.style.background = '#2d6a4f';
+          setTimeout(() => closeModal(), 1800);
+        }, 1800);
+      }
+
+      // Stagger entrance animations
+      document
+        .querySelectorAll(
+          '.service-card, .digital-card, .how-step, .pricing-card',
+        )
+        .forEach((el, i) => {
+          el.style.opacity = '0';
+          el.style.transform = 'translateY(16px)';
+          el.style.transition = `opacity 0.4s ease ${i * 0.07}s, transform 0.4s ease ${i * 0.07}s`;
+        });
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.style.opacity = '1';
+              entry.target.style.transform = 'translateY(0)';
+            }
+          });
+        },
+        { threshold: 0.1 },
+      );
+
+      document
+        .querySelectorAll(
+          '.service-card, .digital-card, .how-step, .pricing-card',
+        )
+        .forEach((el) => observer.observe(el));
+    </script>
+  </body>
+</html>
