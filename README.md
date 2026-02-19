@@ -14,46 +14,63 @@ ETHDenver2026/
 ## Quick Start (Local Development)
 
 ### Prerequisites
-- [Foundry](https://book.getfoundry.sh/getting-started/installation)
+- [Foundry](https://book.getfoundry.sh/getting-started/installation) (`curl -L https://foundry.paradigm.xyz | bash && foundryup`)
 - Node.js 20+
 - OpenAI API key
 
-### 1. Start Local Chain
+### One-command startup
+
 ```bash
-cd contracts
+export OPENAI_API_KEY=sk-...
+./dev.sh
+```
+
+This single script handles everything: starts Anvil, deploys the contract, wires up `.env` files, and launches both the agent and frontend. When it's ready you'll see:
+
+```
+  Frontend:  http://localhost:5173
+  Agent API: http://localhost:3001
+  Contract:  0x...
+```
+
+Press `Ctrl+C` to shut everything down cleanly.
+
+### Test the Flow
+1. Add the Anvil network to MetaMask (RPC `http://127.0.0.1:8545`, Chain ID `31337`)
+2. Import a test private key into MetaMask as a **client** wallet (the script prints one)
+3. Go to `http://localhost:5173/` — submit a job with a description and ETH budget
+4. Import the **worker** private key, switch to it, go to `/work` — accept tasks, upload proof images
+5. Watch `/dashboard` — live feed of agent actions, transactions, and profitability
+
+### Manual startup (if you prefer)
+
+<details>
+<summary>Step-by-step</summary>
+
+**Terminal 1** — Local chain:
+```bash
 anvil --chain-id 31337
 ```
 
-### 2. Deploy Contract
+**Terminal 2** — Deploy:
 ```bash
 cd contracts
 AGENT_ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
 PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d \
-forge script script/Deploy.s.sol --rpc-url localhost --broadcast
+forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
 ```
 
-### 3. Start Agent
+**Terminal 2** — Agent (set `CONTRACT_ADDRESS` and `OPENAI_API_KEY` in `agent/.env`):
 ```bash
-cd agent
-cp .env.example .env
-# Edit .env: set CONTRACT_ADDRESS from step 2, OPENAI_API_KEY
-npm run dev
+cd agent && cp .env.example .env && npm run dev
 ```
 
-### 4. Start Frontend
+**Terminal 3** — Frontend (set `VITE_CONTRACT_ADDRESS` in `frontend/.env`):
 ```bash
-cd frontend
-cp .env.example .env
-# Edit .env: set VITE_CONTRACT_ADDRESS from step 2
-npm run dev
+cd frontend && cp .env.example .env && npm run dev
 ```
 
-### 5. Test the Flow
-1. Import Anvil account #2 into MetaMask (client wallet)
-2. Go to `http://localhost:5173/` — submit a job with 0.01 ETH
-3. Import Anvil account #3 into MetaMask (worker wallet)
-4. Go to `/work` — accept tasks, upload proof images
-5. Watch `/dashboard` — live feed of agent actions
+</details>
 
 ## Production Deployment
 
