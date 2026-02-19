@@ -99,32 +99,63 @@ export async function saveAiTaskResult(result: AiTaskResult) {
 
 export async function getAiTaskResults(jobId: string): Promise<AiTaskResult[]> {
   if (!supabase) return [];
+  const normalizedJobId = String(jobId).trim();
   const { data, error } = await supabase
     .from("ai_task_results")
     .select("*")
-    .eq("job_id", jobId)
+    .eq("job_id", normalizedJobId)
     .order("sequence_index", { ascending: true });
   if (error) {
     console.error("getAiTaskResults error:", error);
     return [];
   }
-  return (data ?? []) as AiTaskResult[];
+  const results = (data ?? []) as AiTaskResult[];
+  // Ensure we only return results for this job (handles DB type coercion edge cases)
+  return results.filter((r) => String(r.job_id).trim() === normalizedJobId);
 }
 
-function jaccardSimilarity(a: string[], b: string[]): number {
-  const setA = new Set(a);
-  const setB = new Set(b);
-  const intersection = [...setA].filter((x) => setB.has(x));
-  const union = new Set([...setA, ...setB]);
-  if (union.size === 0) return 0;
-  return intersection.length / union.size;
+function fuzzyTagMatch(workerTag: string, taskTag: string): boolean {
+  if (workerTag === taskTag) return true;
+  if (workerTag.includes(taskTag) || taskTag.includes(workerTag)) return true;
+  const a = workerTag.replace(/[-_\s]/g, "");
+  const b = taskTag.replace(/[-_\s]/g, "");
+  if (a === b || a.includes(b) || b.includes(a)) return true;
+  return false;
+}
+
+function tagSimilarity(workerTags: string[], taskTags: string[]): { score: number; matchedTags: string[] } {
+  if (workerTags.length === 0 || taskTags.length === 0) return { score: 0, matchedTags: [] };
+
+  const matchedTags: string[] = [];
+  let exactMatches = 0;
+  let fuzzyMatches = 0;
+
+  for (const tt of taskTags) {
+    let matched = false;
+    for (const wt of workerTags) {
+      if (wt === tt) {
+        exactMatches++;
+        matched = true;
+        break;
+      } else if (fuzzyTagMatch(wt, tt)) {
+        fuzzyMatches++;
+        matched = true;
+        break;
+      }
+    }
+    if (matched) matchedTags.push(tt);
+  }
+
+  const totalUnique = new Set([...workerTags, ...taskTags]).size;
+  const score = (exactMatches + fuzzyMatches * 0.6) / totalUnique;
+  return { score, matchedTags };
 }
 
 export async function getRecommendedTasks(
   workerTags: string[],
   openTaskIds: string[],
 ): Promise<Array<{ taskId: string; score: number; matchedTags: string[] }>> {
-  if (!supabase || workerTags.length === 0 || openTaskIds.length === 0) return [];
+  if (!supabase || openTaskIds.length === 0) return [];
 
   const { data: taskTagRows, error } = await supabase
     .from("task_tags")
@@ -135,21 +166,23 @@ export async function getRecommendedTasks(
     console.error("getRecommendedTasks error:", error);
     return [];
   }
-  if (!taskTagRows || taskTagRows.length === 0) return [];
 
   const normalizedWorkerTags = workerTags.map((t) => t.toLowerCase());
+  const taggedTaskIds = new Set<string>();
 
-  const results = taskTagRows
-    .map((row) => {
-      const taskTags: string[] = row.tags ?? [];
-      const score = jaccardSimilarity(normalizedWorkerTags, taskTags);
-      const matchedTags = taskTags.filter((t: string) =>
-        normalizedWorkerTags.includes(t),
-      );
-      return { taskId: row.task_id as string, score, matchedTags };
-    })
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score);
+  const scored = (taskTagRows ?? []).map((row) => {
+    const taskTags: string[] = row.tags ?? [];
+    taggedTaskIds.add(row.task_id as string);
+    const { score, matchedTags } = tagSimilarity(normalizedWorkerTags, taskTags);
+    return { taskId: row.task_id as string, score, matchedTags };
+  });
 
-  return results;
+  for (const id of openTaskIds) {
+    if (!taggedTaskIds.has(id)) {
+      scored.push({ taskId: id, score: 0, matchedTags: [] });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored;
 }

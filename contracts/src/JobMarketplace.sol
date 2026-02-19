@@ -39,7 +39,8 @@ contract JobMarketplace is Ownable, ReentrancyGuard, Pausable {
     }
 
     address public agent;
-    uint256 public nextJobId;
+    uint256 private _jobNonce;
+    uint256 public jobCount;
     uint256 public nextTaskId;
     mapping(uint256 => Job) public jobs;
     mapping(uint256 => Task) public tasks;
@@ -85,7 +86,8 @@ contract JobMarketplace is Ownable, ReentrancyGuard, Pausable {
         require(msg.value >= 0.001 ether, "Minimum budget 0.001 ETH");
         require(bytes(description).length > 0, "Empty description");
 
-        jobId = nextJobId++;
+        jobId = uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, _jobNonce++)));
+        jobCount++;
         jobs[jobId] = Job({
             id: jobId,
             client: msg.sender,
@@ -351,9 +353,9 @@ contract JobMarketplace is Ownable, ReentrancyGuard, Pausable {
         uint256 _totalJobsCompleted,
         uint256 _totalEarnedByAgent,
         uint256 _totalPaidToWorkers,
-        uint256 _nextJobId
+        uint256 _jobCount
     ) {
-        return (totalJobsCompleted, totalEarnedByAgent, totalPaidToWorkers, nextJobId);
+        return (totalJobsCompleted, totalEarnedByAgent, totalPaidToWorkers, jobCount);
     }
 
     function getOpenTasks() external view returns (Task[] memory) {

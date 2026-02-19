@@ -164,24 +164,35 @@ function TaskResultRow({ task }: { task: TaskData }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <div className="text-sm text-slate-300 prose prose-invert prose-sm max-w-none">
-            <ReactMarkdown
-              components={{
-                p: ({ children }) => <p className="m-0">{children}</p>,
-                ul: ({ children }) => <ul className="my-1 ml-4 list-disc">{children}</ul>,
-                ol: ({ children }) => <ol className="my-1 ml-4 list-decimal">{children}</ol>,
-                li: ({ children }) => <li className="my-0.5">{children}</li>,
-                strong: ({ children }) => <strong className="font-semibold text-slate-200">{children}</strong>,
-                em: ({ children }) => <em className="italic">{children}</em>,
-                code: ({ children }) => <code className="rounded bg-slate-800/50 px-1 py-0.5 text-xs font-mono text-purple-300">{children}</code>,
-                h1: ({ children }) => <h1 className="mt-2 mb-1 text-base font-semibold">{children}</h1>,
-                h2: ({ children }) => <h2 className="mt-2 mb-1 text-sm font-semibold">{children}</h2>,
-                h3: ({ children }) => <h3 className="mt-1 mb-0.5 text-sm font-semibold">{children}</h3>,
-              }}
-            >
-              {task.description}
-            </ReactMarkdown>
-          </div>
+          {(() => {
+            const lines = task.description.split("\n");
+            const firstLine = lines[0] ?? "";
+            const rest = lines.slice(1).join("\n").trimStart()
+              .replace(/---\s*AI Research Findings\s*---/gi, "Notes:");
+            return (
+              <div className="text-sm text-slate-300 prose prose-invert prose-sm max-w-none">
+                <p className="mb-3 text-slate-300">{firstLine}</p>
+                {rest && (
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="m-0">{children}</p>,
+                      ul: ({ children }) => <ul className="my-1 ml-4 list-disc">{children}</ul>,
+                      ol: ({ children }) => <ol className="my-1 ml-4 list-decimal">{children}</ol>,
+                      li: ({ children }) => <li className="my-0.5">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold text-slate-200">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      code: ({ children }) => <code className="rounded bg-slate-800/50 px-1 py-0.5 text-xs font-mono text-purple-300">{children}</code>,
+                      h1: ({ children }) => <h1 className="mt-2 mb-1 text-base font-semibold">{children}</h1>,
+                      h2: ({ children }) => <h2 className="mt-2 mb-1 text-sm font-semibold">{children}</h2>,
+                      h3: ({ children }) => <h3 className="mt-1 mb-0.5 text-sm font-semibold">{children}</h3>,
+                    }}
+                  >
+                    {rest}
+                  </ReactMarkdown>
+                )}
+              </div>
+            );
+          })()}
           <div className="flex shrink-0 items-center gap-2">
             <span className="text-xs text-amber-400/80">
               {formatEth(task.reward)} ETH
@@ -290,7 +301,9 @@ function AiTaskRow({ task }: { task: AiTaskResult }) {
 
 function ExpandableJobCard({ jobId }: { jobId: bigint }) {
   const { job, tasks, isLoading } = useJob(jobId);
-  const { aiTasks } = useAiTasks(jobId);
+  const { aiTasks: rawAiTasks } = useAiTasks(jobId);
+  const jobIdStr = jobId.toString();
+  const aiTasks = rawAiTasks.filter((t) => String(t.job_id) === jobIdStr);
   const [expanded, setExpanded] = useState(false);
 
   if (isLoading || !job) {

@@ -56,7 +56,11 @@ export function registerRoutes(app: Express, orchestrator: JobOrchestrator) {
     try {
       const { jobId } = req.params;
       const results = await getAiTaskResults(jobId);
-      res.json(results);
+      // Filter to only return tasks for this exact job (defense against type coercion / query issues)
+      const filtered = results.filter(
+        (r) => String(r.job_id) === String(jobId)
+      );
+      res.json(filtered);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

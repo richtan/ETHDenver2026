@@ -70,8 +70,8 @@ contract JobMarketplaceTest is Test {
         vm.prank(client);
         uint256 jobId = marketplace.createJob{value: 0.01 ether}("Design and post flyers");
 
-        assertEq(jobId, 0);
-        JobMarketplace.Job memory job = marketplace.getJob(0);
+        assertTrue(jobId != 0, "Job ID should be non-zero random");
+        JobMarketplace.Job memory job = marketplace.getJob(jobId);
         assertEq(job.client, client);
         assertEq(job.totalBudget, 0.01 ether);
         assertEq(uint256(job.status), uint256(JobMarketplace.JobStatus.Created));
@@ -80,7 +80,7 @@ contract JobMarketplaceTest is Test {
 
     function test_createJob_emitsEvent() public {
         vm.prank(client);
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(false, true, false, true);
         emit JobMarketplace.JobCreated(0, client, 0.01 ether, "test job");
         marketplace.createJob{value: 0.01 ether}("test job");
     }
@@ -99,14 +99,15 @@ contract JobMarketplaceTest is Test {
 
     function test_clientJobs() public {
         vm.startPrank(client);
-        marketplace.createJob{value: 0.01 ether}("Job 1");
-        marketplace.createJob{value: 0.02 ether}("Job 2");
+        uint256 id1 = marketplace.createJob{value: 0.01 ether}("Job 1");
+        uint256 id2 = marketplace.createJob{value: 0.02 ether}("Job 2");
         vm.stopPrank();
 
         uint256[] memory ids = marketplace.getClientJobs(client);
         assertEq(ids.length, 2);
-        assertEq(ids[0], 0);
-        assertEq(ids[1], 1);
+        assertEq(ids[0], id1);
+        assertEq(ids[1], id2);
+        assertTrue(id1 != id2, "Job IDs should be unique");
     }
 
     // ─── addTask ──────────────────────────────────────────────────────
@@ -495,10 +496,10 @@ contract JobMarketplaceTest is Test {
 
     function test_getAgentStats() public {
         test_fullLifecycle();
-        (uint256 completed, uint256 earned, uint256 paid, uint256 nextId) = marketplace.getAgentStats();
+        (uint256 completed, uint256 earned, uint256 paid, uint256 count) = marketplace.getAgentStats();
         assertEq(completed, 1);
         assertEq(earned, 0.003 ether);
         assertEq(paid, 0.007 ether);
-        assertEq(nextId, 1);
+        assertEq(count, 1);
     }
 }
