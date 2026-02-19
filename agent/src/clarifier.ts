@@ -55,6 +55,15 @@ Rules:
 - AI tasks have reward "0" and proofRequirements "N/A - AI executed".
 - Minimize human tasks — only use humans where AI truly cannot do the work.
 
+Task merging rules:
+- Combine tasks that logically belong to the same person into a single task. For example,
+  "print flyers" and "post flyers" should be ONE task: "Print 10 copies and post them at
+  prominent campus locations."
+- Never split a physical workflow into separate tasks unless a genuinely different skill
+  or person is needed (e.g., a graphic designer vs. someone doing physical labor).
+- If a task's output is only consumed by the very next task and both require physical
+  presence, merge them into one.
+
 Respond as JSON with this shape:
 {
   "ready": false,

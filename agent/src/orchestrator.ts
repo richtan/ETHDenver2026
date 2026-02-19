@@ -164,13 +164,15 @@ export class JobOrchestrator extends EventEmitter {
           status: result.status, timestamp: Date.now() });
       }
 
-      // Build concise context from AI key facts to inject into human task descriptions
-      const allKeyFacts = aiResults
-        .filter(r => r.status === "completed")
-        .flatMap(r => r.key_facts);
-      const aiContext = allKeyFacts.length > 0
-        ? allKeyFacts.map(f => `- ${f}`).join("\n")
-        : "";
+      // Build per-AI-task key facts map for targeted injection
+      const aiFactsByIndex = new Map<number, string[]>();
+      const allKeyFacts: string[] = [];
+      for (const result of aiResults) {
+        if (result.status === "completed" && result.key_facts.length > 0) {
+          aiFactsByIndex.set(result.sequence_index, result.key_facts);
+          allKeyFacts.push(...result.key_facts);
+        }
+      }
 
       // Phase 2: Post human tasks on-chain with AI findings injected
       if (humanTasks.length > 0) {
@@ -185,10 +187,22 @@ export class JobOrchestrator extends EventEmitter {
           const task = taskPlan[i];
           if (task.executorType !== "human") continue;
 
-          // Enrich human task description with AI research findings
+          // Only inject AI findings relevant to this specific human task
+          let relevantFacts: string[] = [];
+          if (task.relevantAiTasks && task.relevantAiTasks.length > 0) {
+            for (const aiIdx of task.relevantAiTasks) {
+              const facts = aiFactsByIndex.get(aiIdx);
+              if (facts) relevantFacts.push(...facts);
+            }
+          } else {
+            relevantFacts = allKeyFacts;
+          }
+          relevantFacts = relevantFacts.slice(0, 4);
+
           let enrichedDescription = task.description;
-          if (aiContext) {
-            enrichedDescription = `${task.description}\n\n--- AI Research Findings ---\n${aiContext}`;
+          if (relevantFacts.length > 0) {
+            const aiContext = relevantFacts.map(f => `- ${f}`).join("\n");
+            enrichedDescription = `${task.description}\n\nNotes:\n${aiContext}`;
           }
 
           const txHash = await addTaskOnChain(jobId, {

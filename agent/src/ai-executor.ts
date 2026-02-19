@@ -20,7 +20,7 @@ Instructions:
 Respond as JSON:
 {
   "deliverable": "the main text result with all findings, formatted with markdown",
-  "keyFacts": ["short, actionable facts only — e.g. 'Release date: March 15, 2026 at 10am EST', 'Retail price: $180 USD', 'Available at: Nike SNKRS app, Foot Locker'. Keep to 3-7 bullet points max. These will be shown to a human worker as a brief reference, so be concise."]
+  "keyFacts": ["STRICT: 4 bullets max, each under 80 characters. Only include concrete values a worker needs to act (hex codes, dimensions, key rules). Combine related info into one bullet. NEVER include: contact info, emails, phone numbers, URLs, source references, department names, compliance disclaimers, or anything already stated in the task description. Put all detailed info in the deliverable instead."]
 }`;
 
 export async function executeAiTask(

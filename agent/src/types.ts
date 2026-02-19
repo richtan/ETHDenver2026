@@ -8,6 +8,7 @@ export interface TaskPlan {
   dependsOnPrevious: boolean;
   tags: string[];
   executorType: "ai" | "human";
+  relevantAiTasks?: number[];
 }
 
 export interface AiTaskResult {
