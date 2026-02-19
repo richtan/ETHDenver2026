@@ -6,6 +6,7 @@ export interface TaskPreview {
   description: string;
   proofRequirements: string;
   reward: string;
+  executorType?: "ai" | "human";
 }
 
 export interface ClarifyResult {
@@ -15,10 +16,12 @@ export interface ClarifyResult {
   taskPreview: TaskPreview[];
 }
 
-const CLARIFY_PROMPT = `You are TaskMaster, an AI agent that manages real-world tasks completed by human workers.
+const CLARIFY_PROMPT = `You are TaskMaster, an AI agent that manages real-world tasks. You can execute
+some tasks yourself (research, information gathering, web lookups) and delegate physical tasks
+to human workers.
 
 Before a job is created, you must gather enough detail to write precise, unambiguous task
-requirements that a worker can complete with zero guesswork.
+requirements.
 
 You will receive:
 - A job description from the client
@@ -41,12 +44,25 @@ If ANY of the following are unclear or missing, ask about them:
 Rules:
 - Ask 1-3 focused questions per round. Don't overwhelm the client.
 - Build on previous answers — ask follow-up questions that go deeper, not repeat what you already know.
-- Only return ready: true when you are confident a freelancer could complete every task
+- Only return ready: true when you are confident every task can be completed
   with zero ambiguity about what to produce and how it will be judged.
 - Always include a taskPreview — your best guess at the task breakdown given what you know so far.
   Tasks should get more specific with each Q&A round.
-- The taskPreview rewards must sum to less than the budget (leave 20-30% agent margin).
-- Each task's proof is always a SINGLE IMAGE (PNG/JPG).
+- The taskPreview rewards for HUMAN tasks must sum to less than the budget (leave 20-30% agent margin).
+- Each human task's proof is always a SINGLE IMAGE (PNG/JPG).
+- For each task, include executorType: "ai" if the agent can do it (research, web lookups,
+  finding dates/prices, information gathering) or "human" if it requires physical action.
+- AI tasks have reward "0" and proofRequirements "N/A - AI executed".
+- Minimize human tasks — only use humans where AI truly cannot do the work.
+
+Task merging rules:
+- Combine tasks that logically belong to the same person into a single task. For example,
+  "print flyers" and "post flyers" should be ONE task: "Print 10 copies and post them at
+  prominent campus locations."
+- Never split a physical workflow into separate tasks unless a genuinely different skill
+  or person is needed (e.g., a graphic designer vs. someone doing physical labor).
+- If a task's output is only consumed by the very next task and both require physical
+  presence, merge them into one.
 
 Respond as JSON with this shape:
 {
@@ -54,9 +70,10 @@ Respond as JSON with this shape:
   "questions": ["question 1", "question 2"],
   "taskPreview": [
     {
-      "description": "What the worker does",
-      "proofRequirements": "Exact criteria the proof image must show",
-      "reward": "0.003"
+      "description": "What needs to be done",
+      "proofRequirements": "Exact criteria the proof image must show (or 'N/A - AI executed')",
+      "reward": "0.003",
+      "executorType": "human"
     }
   ]
 }

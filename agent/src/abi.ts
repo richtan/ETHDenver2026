@@ -211,7 +211,7 @@ export const JOB_MARKETPLACE_ABI = [
         "internalType": "uint256"
       },
       {
-        "name": "_nextJobId",
+        "name": "_jobCount",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -698,7 +698,7 @@ export const JOB_MARKETPLACE_ABI = [
   },
   {
     "type": "function",
-    "name": "nextJobId",
+    "name": "jobCount",
     "inputs": [],
     "outputs": [
       {

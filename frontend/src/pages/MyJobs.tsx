@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAccount } from "wagmi";
 import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from "react-markdown";
 import {
   Briefcase,
   ChevronDown,
@@ -13,10 +14,13 @@ import {
   Coins,
   ExternalLink,
   ImageIcon,
+  Zap,
 } from "lucide-react";
 import { useClientJobs } from "../hooks/useClientJobs";
 import { useJob } from "../hooks/useJob";
-import { formatEth } from "../lib/formatEth";
+import { useAiTasks, type AiTaskResult } from "../hooks/useAiTasks";
+import { formatEth, ethToUsd } from "../lib/formatEth";
+import { useEthPrice } from "../hooks/useEthPrice";
 import { ipfsToHttp } from "../config/pinata";
 
 const JOB_STATUS = ["Created", "InProgress", "Completed", "Cancelled"] as const;
@@ -151,6 +155,7 @@ function ProofImageGallery({ proofURI }: { proofURI: string }) {
 }
 
 function TaskResultRow({ task }: { task: TaskData }) {
+  const { ethPrice } = useEthPrice();
   const isCompleted = task.status === 4;
   const hasProof = task.proofURI && task.proofURI.length > 0;
 
@@ -161,10 +166,43 @@ function TaskResultRow({ task }: { task: TaskData }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm text-slate-300">{task.description}</p>
+          {(() => {
+            const lines = task.description.split("\n");
+            const firstLine = lines[0] ?? "";
+            const rest = lines.slice(1).join("\n").trimStart()
+              .replace(/---\s*AI Research Findings\s*---/gi, "Notes:");
+            return (
+              <div className="text-sm text-slate-300 prose prose-invert prose-sm max-w-none">
+                <p className="mb-3 text-slate-300">{firstLine}</p>
+                {rest && (
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="m-0">{children}</p>,
+                      ul: ({ children }) => <ul className="my-1 ml-4 list-disc">{children}</ul>,
+                      ol: ({ children }) => <ol className="my-1 ml-4 list-decimal">{children}</ol>,
+                      li: ({ children }) => <li className="my-0.5">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold text-slate-200">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      code: ({ children }) => <code className="rounded bg-slate-800/50 px-1 py-0.5 text-xs font-mono text-purple-300">{children}</code>,
+                      h1: ({ children }) => <h1 className="mt-2 mb-1 text-base font-semibold">{children}</h1>,
+                      h2: ({ children }) => <h2 className="mt-2 mb-1 text-sm font-semibold">{children}</h2>,
+                      h3: ({ children }) => <h3 className="mt-1 mb-0.5 text-sm font-semibold">{children}</h3>,
+                    }}
+                  >
+                    {rest}
+                  </ReactMarkdown>
+                )}
+              </div>
+            );
+          })()}
           <div className="flex shrink-0 items-center gap-2">
             <span className="text-xs text-amber-400/80">
               {formatEth(task.reward)} ETH
+              {ethPrice && (
+                <span className="ml-1 text-slate-500">
+                  (~${ethToUsd(task.reward, ethPrice)})
+                </span>
+              )}
             </span>
             {isCompleted && (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
@@ -181,9 +219,21 @@ function TaskResultRow({ task }: { task: TaskData }) {
         </div>
 
         {task.proofRequirements && (
-          <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-            {task.proofRequirements}
-          </p>
+          <div className="mt-1 text-xs text-slate-500 leading-relaxed prose prose-invert prose-xs max-w-none">
+            <ReactMarkdown
+              components={{
+                p: ({ children }) => <p className="m-0">{children}</p>,
+                ul: ({ children }) => <ul className="my-1 ml-4 list-disc">{children}</ul>,
+                ol: ({ children }) => <ol className="my-1 ml-4 list-decimal">{children}</ol>,
+                li: ({ children }) => <li className="my-0.5">{children}</li>,
+                strong: ({ children }) => <strong className="font-semibold text-slate-400">{children}</strong>,
+                em: ({ children }) => <em className="italic">{children}</em>,
+                code: ({ children }) => <code className="rounded bg-slate-800/50 px-1 py-0.5 text-[10px] font-mono text-purple-300">{children}</code>,
+              }}
+            >
+              {task.proofRequirements}
+            </ReactMarkdown>
+          </div>
         )}
 
         {task.rejectionReason && (
@@ -209,8 +259,59 @@ function TaskResultRow({ task }: { task: TaskData }) {
   );
 }
 
+function AiTaskRow({ task }: { task: AiTaskResult }) {
+  const [showResult, setShowResult] = useState(false);
+  const isCompleted = task.status === "completed";
+  const isFailed = task.status === "failed";
+
+  return (
+    <div className="relative flex items-start gap-3 py-2">
+      <div className="relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-600/20">
+        {isCompleted ? (
+          <CheckCircle2 className="h-4 w-4 text-purple-400" />
+        ) : isFailed ? (
+          <XCircle className="h-4 w-4 text-red-400" />
+        ) : (
+          <Loader2 className="h-4 w-4 text-purple-400 animate-spin" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm text-slate-300">{task.description}</p>
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-purple-500/15 px-2 py-0.5 text-[10px] font-medium text-purple-400">
+            <Zap className="h-2.5 w-2.5" />
+            AI
+          </span>
+        </div>
+        {isCompleted && task.result && (
+          <>
+            <button
+              onClick={() => setShowResult(!showResult)}
+              className="mt-1 text-xs text-purple-400 hover:text-purple-300 transition"
+            >
+              {showResult ? "Hide findings" : "Show findings"}
+            </button>
+            {showResult && (
+              <div className="mt-2 rounded-lg bg-purple-500/5 border border-purple-500/20 p-3 text-xs text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto">
+                {task.result}
+              </div>
+            )}
+          </>
+        )}
+        {isFailed && task.error && (
+          <p className="mt-1 text-xs text-red-400/80">Error: {task.error}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ExpandableJobCard({ jobId }: { jobId: bigint }) {
+  const { ethPrice } = useEthPrice();
   const { job, tasks, isLoading } = useJob(jobId);
+  const { aiTasks: rawAiTasks } = useAiTasks(jobId);
+  const jobIdStr = jobId.toString();
+  const aiTasks = rawAiTasks.filter((t) => String(t.job_id) === jobIdStr);
   const [expanded, setExpanded] = useState(true);
 
   if (isLoading || !job) {
@@ -236,8 +337,10 @@ function ExpandableJobCard({ jobId }: { jobId: bigint }) {
   const taskList = [...rawTasks].sort(
     (a, b) => Number(a.sequenceIndex ?? 0) - Number(b.sequenceIndex ?? 0),
   );
-  const completedCount = taskList.filter((t) => t.status === 4).length;
-  const totalCount = taskList.length;
+  const aiCompletedCount = aiTasks.filter((t) => t.status === "completed").length;
+  const humanCompletedCount = taskList.filter((t) => t.status === 4).length;
+  const completedCount = aiCompletedCount + humanCompletedCount;
+  const totalCount = taskList.length + aiTasks.length;
   const statusLabel = JOB_STATUS[Math.min(jobData.status, 3)] ?? "Unknown";
 
   const statusBadgeClass = {
@@ -269,6 +372,11 @@ function ExpandableJobCard({ jobId }: { jobId: bigint }) {
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-blue-400">
               {formatEth(jobData.totalBudget)} ETH
+              {ethPrice && (
+                <span className="ml-1 text-slate-500 font-normal text-xs">
+                  (~${ethToUsd(jobData.totalBudget, ethPrice)})
+                </span>
+              )}
             </span>
             <span
               className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusBadgeClass}`}
@@ -311,7 +419,7 @@ function ExpandableJobCard({ jobId }: { jobId: bigint }) {
 
       {/* Expanded task list */}
       <AnimatePresence>
-        {expanded && taskList.length > 0 && (
+        {expanded && (aiTasks.length > 0 || taskList.length > 0) && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -320,22 +428,46 @@ function ExpandableJobCard({ jobId }: { jobId: bigint }) {
             className="overflow-hidden"
           >
             <div className="border-t border-slate-800/60 px-5 py-4">
-              <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">
-                Tasks
-              </p>
-              <div className="space-y-1">
-                {taskList.map((task, i) => (
-                  <div key={i} className="relative">
-                    {i < taskList.length - 1 && (
-                      <div
-                        className="absolute left-[11px] top-8 h-[calc(100%-16px)] w-px bg-slate-700/60"
-                        aria-hidden
-                      />
-                    )}
-                    <TaskResultRow task={task} />
+              {aiTasks.length > 0 && (
+                <>
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-purple-400/70">
+                    AI Research
+                  </p>
+                  <div className="space-y-1 mb-4">
+                    {aiTasks.map((task, i) => (
+                      <div key={task.id} className="relative">
+                        {(i < aiTasks.length - 1 || taskList.length > 0) && (
+                          <div
+                            className="absolute left-[11px] top-8 h-[calc(100%-16px)] w-px bg-purple-700/30"
+                            aria-hidden
+                          />
+                        )}
+                        <AiTaskRow task={task} />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              )}
+              {taskList.length > 0 && (
+                <>
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">
+                    {aiTasks.length > 0 ? "Human Tasks" : "Tasks"}
+                  </p>
+                  <div className="space-y-1">
+                    {taskList.map((task, i) => (
+                      <div key={i} className="relative">
+                        {i < taskList.length - 1 && (
+                          <div
+                            className="absolute left-[11px] top-8 h-[calc(100%-16px)] w-px bg-slate-700/60"
+                            aria-hidden
+                          />
+                        )}
+                        <TaskResultRow task={task} />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </motion.div>
         )}

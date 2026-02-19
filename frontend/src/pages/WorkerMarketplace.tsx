@@ -20,10 +20,14 @@ import { useAcceptTask } from '../hooks/useAcceptTask';
 import { useClientJobs } from '../hooks/useClientJobs';
 import { useJob } from '../hooks/useJob';
 import { useWorkerProfile } from '../hooks/useWorkerProfile';
-import { useRecommendedTasks, type TaskRecommendation } from '../hooks/useRecommendedTasks';
+import {
+  useRecommendedTasks,
+  type TaskRecommendation,
+} from '../hooks/useRecommendedTasks';
 import { useTaskTags } from '../hooks/useTaskTags';
 import { WorkerProfilePanel } from '../components/WorkerProfilePanel';
-import { formatEth } from '../lib/formatEth';
+import { formatEth, ethToUsd } from '../lib/formatEth';
+import { useEthPrice } from '../hooks/useEthPrice';
 
 type TaskStruct = {
   id: bigint;
@@ -118,6 +122,7 @@ function TaskCard({
   workerTags?: string[];
   recommendation?: TaskRecommendation;
 }) {
+  const { ethPrice } = useEthPrice();
   const { id, jobId, description, reward, deadline } = task;
   const deadlineStr = formatDeadline(deadline);
   const isExpired = deadlineStr === 'Expired';
@@ -173,6 +178,11 @@ function TaskCard({
         <span className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-400">
           <Coins className="h-4 w-4" />
           {formatEth(reward)} ETH
+          {ethPrice && (
+            <span className="ml-1 text-slate-500 text-xs font-normal">
+              (~${ethToUsd(reward, ethPrice)})
+            </span>
+          )}
         </span>
         <span
           className={`inline-flex items-center gap-1.5 text-sm ${
@@ -187,7 +197,7 @@ function TaskCard({
       <div className="mt-5 flex flex-1 items-end gap-2">
         <Link
           to={`/work/${id.toString()}`}
-          state={{ from: "/work" }}
+          state={{ from: '/work' }}
           className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-600/60 bg-slate-800/50 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500/80 hover:bg-slate-800/80 hover:text-white"
         >
           View Details
@@ -239,7 +249,9 @@ export default function WorkerMarketplace() {
     setHiddenTaskIds((prev) => new Set(prev).add(acceptingTaskId));
     setSuccessBanner(`Task #${acceptingTaskId.toString()} accepted!`);
     const navTimer = setTimeout(() => {
-      navigate(`/work/${acceptingTaskId.toString()}`, { state: { from: "/work" } });
+      navigate(`/work/${acceptingTaskId.toString()}`, {
+        state: { from: '/work' },
+      });
     }, 1500);
     return () => clearTimeout(navTimer);
   }, [isSuccess, acceptingTaskId, navigate]);
@@ -249,9 +261,12 @@ export default function WorkerMarketplace() {
   const taskList: TaskStruct[] = Array.isArray(tasks)
     ? tasks.filter(
         (t): t is TaskStruct =>
-          t != null && typeof t === 'object' && 'id' in t && 'jobId' in t &&
+          t != null &&
+          typeof t === 'object' &&
+          'id' in t &&
+          'jobId' in t &&
           !hiddenTaskIds.has(t.id) &&
-          !myJobIdSet.has(t.jobId.toString())
+          !myJobIdSet.has(t.jobId.toString()),
       )
     : [];
 
@@ -358,7 +373,7 @@ export default function WorkerMarketplace() {
           )}
         </div>
         <p className="mt-3 text-lg text-slate-400">
-          Browse open tasks and accept work to earn ETH on Base.
+          Browse open tasks and accept work to earn on Base.
         </p>
       </motion.section>
 

@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
-import { Link, useParams, useLocation } from "react-router-dom";
-import { useAccount, useReadContract } from "wagmi";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useRef, useEffect } from 'react';
+import { Link, useParams, useLocation } from 'react-router-dom';
+import { useAccount, useReadContract } from 'wagmi';
+import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
 import {
   ArrowLeft,
   Clock,
@@ -13,29 +14,30 @@ import {
   Loader2,
   ExternalLink,
   Plus,
-} from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { CONTRACT_ADDRESS } from "../config/wagmi";
-import { JOB_MARKETPLACE_ABI } from "../abi/JobMarketplace";
-import { ipfsToHttp } from "../config/pinata";
-import { formatEth } from "../lib/formatEth";
-import { useAcceptTask } from "../hooks/useAcceptTask";
-import { useSubmitProof } from "../hooks/useSubmitProof";
-import { useUploadProof } from "../hooks/useUploadProof";
+} from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { CONTRACT_ADDRESS } from '../config/wagmi';
+import { JOB_MARKETPLACE_ABI } from '../abi/JobMarketplace';
+import { ipfsToHttp } from '../config/pinata';
+import { formatEth, ethToUsd } from '../lib/formatEth';
+import { useEthPrice } from '../hooks/useEthPrice';
+import { useAcceptTask } from '../hooks/useAcceptTask';
+import { useSubmitProof } from '../hooks/useSubmitProof';
+import { useUploadProof } from '../hooks/useUploadProof';
 
 const TASK_STATUS = {
-  0: { label: "Pending", color: "text-slate-400", icon: Clock },
-  1: { label: "Open", color: "text-blue-400", icon: Clock },
-  2: { label: "In Progress", color: "text-amber-400", icon: CheckCircle2 },
-  3: { label: "Pending Verification", color: "text-cyan-400", icon: Loader2 },
-  4: { label: "Completed", color: "text-emerald-400", icon: CheckCircle2 },
-  5: { label: "Cancelled", color: "text-red-400", icon: XCircle },
+  0: { label: 'Pending', color: 'text-slate-400', icon: Clock },
+  1: { label: 'Open', color: 'text-blue-400', icon: Clock },
+  2: { label: 'In Progress', color: 'text-amber-400', icon: CheckCircle2 },
+  3: { label: 'Pending Verification', color: 'text-cyan-400', icon: Loader2 },
+  4: { label: 'Completed', color: 'text-emerald-400', icon: CheckCircle2 },
+  5: { label: 'Cancelled', color: 'text-red-400', icon: XCircle },
 } as const;
 
 function formatDeadline(deadline: bigint): string {
   const now = Math.floor(Date.now() / 1000);
   const deadlineNum = Number(deadline);
-  if (deadlineNum <= now) return "Expired";
+  if (deadlineNum <= now) return 'Expired';
   return formatDistanceToNow(new Date(deadlineNum * 1000), { addSuffix: true });
 }
 
@@ -51,10 +53,17 @@ const cardVariants = {
 export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const { address } = useAccount();
+  const { ethPrice } = useEthPrice();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from;
-  const backTo = from === "/jobs" ? "/jobs" : from === "/my-tasks" ? "/my-tasks" : "/work";
-  const backLabel = from === "/jobs" ? "Back to My Jobs" : from === "/my-tasks" ? "Back to My Work" : "Back to Marketplace";
+  const backTo =
+    from === '/jobs' ? '/jobs' : from === '/my-tasks' ? '/my-tasks' : '/work';
+  const backLabel =
+    from === '/jobs'
+      ? 'Back to My Jobs'
+      : from === '/my-tasks'
+        ? 'Back to My Work'
+        : 'Back to Marketplace';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -64,24 +73,42 @@ export default function TaskDetailPage() {
   const { data: task, isLoading: taskLoading } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: JOB_MARKETPLACE_ABI,
-    functionName: "getTask",
+    functionName: 'getTask',
     args: taskId ? [BigInt(taskId)] : undefined,
     query: { refetchInterval: 3_000 },
   });
 
   const jobId = task ? (task as { jobId: bigint }).jobId : undefined;
-  const sequenceIndex = task ? (task as { sequenceIndex: bigint }).sequenceIndex : undefined;
+  const sequenceIndex = task
+    ? (task as { sequenceIndex: bigint }).sequenceIndex
+    : undefined;
 
   const { data: previousDeliverableUri } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: JOB_MARKETPLACE_ABI,
-    functionName: "getPreviousDeliverable",
+    functionName: 'getPreviousDeliverable',
     args: jobId !== undefined && taskId ? [jobId, BigInt(taskId)] : undefined,
   });
 
-  const { acceptTask, isPending: accepting, isConfirming: confirmingAccept, isSuccess: acceptSuccess } = useAcceptTask();
-  const { submitProof, isPending: submitting, isConfirming: confirmingSubmit, isSuccess: submitSuccess } = useSubmitProof();
-  const { upload, uploading, ipfsUri, error: uploadError, progress } = useUploadProof();
+  const {
+    acceptTask,
+    isPending: accepting,
+    isConfirming: confirmingAccept,
+    isSuccess: acceptSuccess,
+  } = useAcceptTask();
+  const {
+    submitProof,
+    isPending: submitting,
+    isConfirming: confirmingSubmit,
+    isSuccess: submitSuccess,
+  } = useSubmitProof();
+  const {
+    upload,
+    uploading,
+    ipfsUri,
+    error: uploadError,
+    progress,
+  } = useUploadProof();
 
   useEffect(() => {
     if (submitSuccess) setProofSubmitted(true);
@@ -113,19 +140,28 @@ export default function TaskDetailPage() {
     }
   }, [parsedTask?.rejectionReason, parsedTask?.status]);
 
-  const isWorker = parsedTask && address && parsedTask.worker.toLowerCase() === address.toLowerCase();
-  const canAccept = parsedTask?.status === 1 && address && !accepting && !confirmingAccept;
+  const isWorker =
+    parsedTask &&
+    address &&
+    parsedTask.worker.toLowerCase() === address.toLowerCase();
+  const canAccept =
+    parsedTask?.status === 1 && address && !accepting && !confirmingAccept;
   const showProofUpload =
     parsedTask?.status === 2 && isWorker && address && !proofSubmitted;
   const showProofVerifying =
     (parsedTask?.status === 2 && proofSubmitted) || false;
 
   function handleFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith("image/"));
+    const files = Array.from(e.target.files || []).filter((f) =>
+      f.type.startsWith('image/'),
+    );
     if (files.length === 0) return;
     setSelectedFiles((prev) => [...prev, ...files]);
-    setPreviewUrls((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setPreviewUrls((prev) => [
+      ...prev,
+      ...files.map((f) => URL.createObjectURL(f)),
+    ]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   function removeFile(index: number) {
@@ -148,7 +184,7 @@ export default function TaskDetailPage() {
     previewUrls.forEach((url) => URL.revokeObjectURL(url));
     setSelectedFiles([]);
     setPreviewUrls([]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   if (!taskId) {
@@ -184,12 +220,16 @@ export default function TaskDetailPage() {
     );
   }
 
-  const statusMeta = TASK_STATUS[parsedTask.status as keyof typeof TASK_STATUS] ?? TASK_STATUS[0];
+  const statusMeta =
+    TASK_STATUS[parsedTask.status as keyof typeof TASK_STATUS] ??
+    TASK_STATUS[0];
   const StatusIcon = statusMeta.icon;
   const deadlineStr = formatDeadline(parsedTask.deadline);
-  const isExpired = deadlineStr === "Expired";
-  const prevUri = typeof previousDeliverableUri === "string" ? previousDeliverableUri : "";
-  const hasPreviousDeliverable = parsedTask.sequenceIndex > 0n && prevUri && prevUri.length > 0;
+  const isExpired = deadlineStr === 'Expired';
+  const prevUri =
+    typeof previousDeliverableUri === 'string' ? previousDeliverableUri : '';
+  const hasPreviousDeliverable =
+    parsedTask.sequenceIndex > 0n && prevUri && prevUri.length > 0;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -226,36 +266,97 @@ export default function TaskDetailPage() {
             >
               <StatusIcon
                 className={
-                  parsedTask.status === 3 ? "h-4 w-4 animate-spin" : "h-4 w-4"
+                  parsedTask.status === 3 ? 'h-4 w-4 animate-spin' : 'h-4 w-4'
                 }
               />
               {statusMeta.label}
             </span>
           </div>
 
-          <h1 className="text-xl font-semibold tracking-tight text-white">
-            {parsedTask.description}
-          </h1>
+          {(() => {
+            const lines = parsedTask.description.split("\n");
+            const firstLine = lines[0] ?? "";
+            const rest = lines.slice(1).join("\n").trimStart()
+              .replace(/---\s*AI Research Findings\s*---/gi, "Notes:");
+            return (
+              <div className="text-sm text-slate-300 prose prose-invert prose-sm max-w-none">
+                <p className="mb-3 font-semibold text-white">{firstLine}</p>
+                {rest && (
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="m-0">{children}</p>,
+                      ul: ({ children }) => <ul className="my-1 ml-5 list-disc">{children}</ul>,
+                      ol: ({ children }) => <ol className="my-1 ml-5 list-decimal">{children}</ol>,
+                      li: ({ children }) => <li className="my-0.5">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold text-slate-200">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      code: ({ children }) => <code className="rounded bg-slate-800/50 px-1 py-0.5 text-xs font-mono text-purple-300">{children}</code>,
+                      h1: ({ children }) => <h1 className="mt-2 mb-1 text-base font-bold text-white">{children}</h1>,
+                      h2: ({ children }) => <h2 className="mt-2 mb-1 text-sm font-semibold text-white">{children}</h2>,
+                      h3: ({ children }) => <h3 className="mt-1 mb-0.5 text-sm font-semibold text-slate-200">{children}</h3>,
+                    }}
+                  >
+                    {rest}
+                  </ReactMarkdown>
+                )}
+              </div>
+            );
+          })()}
 
           {parsedTask.proofRequirements && (
             <div className="mt-4">
               <h3 className="text-sm font-medium text-slate-400">
                 Proof requirements
               </h3>
-              <p className="mt-1.5 text-slate-300">
-                {parsedTask.proofRequirements}
-              </p>
+              <div className="mt-1.5 text-slate-300 prose prose-invert prose-sm max-w-none">
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <p className="m-0">{children}</p>,
+                    ul: ({ children }) => (
+                      <ul className="my-1 ml-4 list-disc">{children}</ul>
+                    ),
+                    ol: ({ children }) => (
+                      <ol className="my-1 ml-4 list-decimal">{children}</ol>
+                    ),
+                    li: ({ children }) => (
+                      <li className="my-0.5">{children}</li>
+                    ),
+                    strong: ({ children }) => (
+                      <strong className="font-semibold text-slate-200">
+                        {children}
+                      </strong>
+                    ),
+                    em: ({ children }) => (
+                      <em className="italic">{children}</em>
+                    ),
+                    code: ({ children }) => (
+                      <code className="rounded bg-slate-800/50 px-1 py-0.5 text-xs font-mono text-purple-300">
+                        {children}
+                      </code>
+                    ),
+                  }}
+                >
+                  {parsedTask.proofRequirements}
+                </ReactMarkdown>
+              </div>
             </div>
           )}
 
           <div className="mt-6 flex flex-wrap gap-4">
             <span className="inline-flex items-center gap-2 text-amber-400">
               <Coins className="h-4 w-4" />
-              <span className="font-medium">{formatEth(parsedTask.reward)} ETH</span>
+              <span className="font-medium">
+                {formatEth(parsedTask.reward)} ETH
+                {ethPrice && (
+                  <span className="ml-1 text-slate-500 text-sm font-normal">
+                    (~${ethToUsd(parsedTask.reward, ethPrice)})
+                  </span>
+                )}
+              </span>
             </span>
             <span
               className={`inline-flex items-center gap-2 ${
-                isExpired ? "text-red-400/90" : "text-slate-400"
+                isExpired ? 'text-red-400/90' : 'text-slate-400'
               }`}
             >
               <Clock className="h-4 w-4" />
@@ -269,10 +370,14 @@ export default function TaskDetailPage() {
               animate={{ opacity: 1 }}
               className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3"
             >
-              <p className="text-sm font-medium text-red-400">Rejection reason</p>
+              <p className="text-sm font-medium text-red-400">
+                Rejection reason
+              </p>
               <div className="mt-1 space-y-1">
-                {parsedTask.rejectionReason.split("\n").map((line, i) => (
-                  <p key={i} className="text-sm text-slate-300">{line}</p>
+                {parsedTask.rejectionReason.split('\n').map((line, i) => (
+                  <p key={i} className="text-sm text-slate-300">
+                    {line}
+                  </p>
                 ))}
               </div>
             </motion.div>
@@ -290,7 +395,7 @@ export default function TaskDetailPage() {
                 disabled={accepting || confirmingAccept || isExpired}
                 className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/20 transition hover:from-emerald-500 hover:to-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {(accepting || confirmingAccept) ? (
+                {accepting || confirmingAccept ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Accepting…
@@ -328,7 +433,8 @@ export default function TaskDetailPage() {
               Previous deliverable
             </h3>
             <p className="mt-2 text-sm text-slate-500">
-              This task depends on output from the previous task in the sequence.
+              This task depends on output from the previous task in the
+              sequence.
             </p>
             <a
               href={ipfsToHttp(prevUri)}
@@ -347,9 +453,7 @@ export default function TaskDetailPage() {
             variants={cardVariants}
             className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-6 backdrop-blur-sm"
           >
-            <h3 className="text-sm font-medium text-slate-400">
-              Submit proof
-            </h3>
+            <h3 className="text-sm font-medium text-slate-400">Submit proof</h3>
             <p className="mt-1 text-sm text-slate-500">
               Upload one or more images as proof of task completion.
             </p>
@@ -371,7 +475,9 @@ export default function TaskDetailPage() {
                   className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-700/60 bg-slate-800/30 py-8 text-slate-400 transition hover:border-slate-600 hover:bg-slate-800/50 hover:text-slate-300"
                 >
                   <Image className="h-10 w-10" />
-                  <span className="text-sm font-medium">Choose images or take photo</span>
+                  <span className="text-sm font-medium">
+                    Choose images or take photo
+                  </span>
                 </button>
               ) : (
                 <div className="space-y-3">
@@ -439,7 +545,9 @@ export default function TaskDetailPage() {
                           ) : (
                             <>
                               <Upload className="h-4 w-4" />
-                              Upload {selectedFiles.length} {selectedFiles.length === 1 ? "image" : "images"} to IPFS
+                              Upload {selectedFiles.length}{' '}
+                              {selectedFiles.length === 1 ? 'image' : 'images'}{' '}
+                              to IPFS
                             </>
                           )}
                         </button>
@@ -463,7 +571,7 @@ export default function TaskDetailPage() {
                           disabled={submitting || confirmingSubmit}
                           className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/20 transition hover:from-emerald-500 hover:to-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {(submitting || confirmingSubmit) ? (
+                          {submitting || confirmingSubmit ? (
                             <>
                               <Loader2 className="h-4 w-4 animate-spin" />
                               Submitting…
@@ -504,25 +612,28 @@ export default function TaskDetailPage() {
           </motion.section>
         )}
 
-        {(parsedTask.status === 3 || parsedTask.status === 4) && parsedTask.proofURI && (
-          <motion.section
-            variants={cardVariants}
-            className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-6 backdrop-blur-sm"
-          >
-            <h3 className="text-sm font-medium text-slate-400">
-              {parsedTask.status === 4 ? "Submitted proof" : "Proof submitted"}
-            </h3>
-            <a
-              href={ipfsToHttp(parsedTask.proofURI)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-800/50 px-4 py-2 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white"
+        {(parsedTask.status === 3 || parsedTask.status === 4) &&
+          parsedTask.proofURI && (
+            <motion.section
+              variants={cardVariants}
+              className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-6 backdrop-blur-sm"
             >
-              <ExternalLink className="h-4 w-4" />
-              View proof
-            </a>
-          </motion.section>
-        )}
+              <h3 className="text-sm font-medium text-slate-400">
+                {parsedTask.status === 4
+                  ? 'Submitted proof'
+                  : 'Proof submitted'}
+              </h3>
+              <a
+                href={ipfsToHttp(parsedTask.proofURI)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-800/50 px-4 py-2 text-sm text-slate-300 transition hover:border-slate-600 hover:text-white"
+              >
+                <ExternalLink className="h-4 w-4" />
+                View proof
+              </a>
+            </motion.section>
+          )}
       </motion.div>
     </div>
   );

@@ -6,7 +6,7 @@ import { type JobOrchestrator } from "../orchestrator.js";
 import { config, NETWORK } from "../config.js";
 import { type AgentWallet } from "../wallet.js";
 import { clarifyJob } from "../clarifier.js";
-import { getWorkerProfile, setWorkerTags, getAllTaskTags, getRecommendedTasks } from "../supabase.js";
+import { getWorkerProfile, setWorkerTags, getAllTaskTags, getRecommendedTasks, getAiTaskResults } from "../supabase.js";
 
 const openai = new OpenAI();
 
@@ -47,6 +47,20 @@ export function registerRoutes(app: Express, orchestrator: JobOrchestrator) {
       }
       const result = await clarifyJob(description, budget, conversation || []);
       res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/jobs/:jobId/ai-tasks", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const results = await getAiTaskResults(jobId);
+      // Filter to only return tasks for this exact job (defense against type coercion / query issues)
+      const filtered = results.filter(
+        (r) => String(r.job_id) === String(jobId)
+      );
+      res.json(filtered);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

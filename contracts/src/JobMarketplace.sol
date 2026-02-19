@@ -39,7 +39,8 @@ contract JobMarketplace is Ownable, ReentrancyGuard, Pausable {
     }
 
     address public agent;
-    uint256 public nextJobId;
+    uint256 private _jobNonce;
+    uint256 public jobCount;
     uint256 public nextTaskId;
     mapping(uint256 => Job) public jobs;
     mapping(uint256 => Task) public tasks;
@@ -85,7 +86,8 @@ contract JobMarketplace is Ownable, ReentrancyGuard, Pausable {
         require(msg.value >= 0.0001 ether, "Minimum budget 0.0001 ETH");
         require(bytes(description).length > 0, "Empty description");
 
-        jobId = nextJobId++;
+        jobId = uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, _jobNonce++)));
+        jobCount++;
         jobs[jobId] = Job({
             id: jobId,
             client: msg.sender,
@@ -116,7 +118,7 @@ contract JobMarketplace is Ownable, ReentrancyGuard, Pausable {
         require(job.status == JobStatus.Created || job.status == JobStatus.InProgress, "Job not active");
         require(job.totalCommitted + reward <= job.totalBudget, "Exceeds budget");
 
-        taskId = nextTaskId++;
+        taskId = ++nextTaskId;
         uint256 seqIndex = jobTaskIds[jobId].length;
 
         uint256 actualDeadline = seqIndex == 0
@@ -351,19 +353,19 @@ contract JobMarketplace is Ownable, ReentrancyGuard, Pausable {
         uint256 _totalJobsCompleted,
         uint256 _totalEarnedByAgent,
         uint256 _totalPaidToWorkers,
-        uint256 _nextJobId
+        uint256 _jobCount
     ) {
-        return (totalJobsCompleted, totalEarnedByAgent, totalPaidToWorkers, nextJobId);
+        return (totalJobsCompleted, totalEarnedByAgent, totalPaidToWorkers, jobCount);
     }
 
     function getOpenTasks() external view returns (Task[] memory) {
         uint256 count = 0;
-        for (uint256 i = 0; i < nextTaskId; i++) {
+        for (uint256 i = 1; i <= nextTaskId; i++) {
             if (tasks[i].status == TaskStatus.Open) count++;
         }
         Task[] memory result = new Task[](count);
         uint256 idx = 0;
-        for (uint256 i = 0; i < nextTaskId; i++) {
+        for (uint256 i = 1; i <= nextTaskId; i++) {
             if (tasks[i].status == TaskStatus.Open) result[idx++] = tasks[i];
         }
         return result;
