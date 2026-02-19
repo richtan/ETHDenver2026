@@ -33,18 +33,25 @@ Respond as JSON:
 }
 
 function buildRequirementsPrompt(task: { description: string; proofRequirements: string }) {
-  return `You are a strict quality inspector. A worker was hired to complete a task and submitted image(s) as proof. The worker may have submitted multiple images — evaluate ALL of them together as a combined proof submission.
+  return `You are a quality inspector. A worker was hired to complete a task and submitted image(s) as proof. The worker may have submitted multiple images — evaluate ALL of them together as a combined proof submission.
 
 **Task they were hired for:** ${task.description}
 **Proof requirements they must meet:** ${task.proofRequirements}
 
-Score this submission on three dimensions. Be strict -- real money is being paid based on your assessment.
+CRITICAL: Use common-sense semantic reasoning, NOT literal string matching. Judge whether the INTENT of each requirement is met, not whether the exact words appear. For example:
+- "golden retriever" satisfies a requirement about "dog"
+- "NYC" satisfies "New York City"
+- A blue sedan satisfies "vehicle"
+- A handwritten note satisfies "written message"
+Do NOT penalize workers for reasonable variations, synonyms, or specific instances of a general category. Only deduct when the proof genuinely fails to meet the spirit of the requirement.
+
+Score this submission on three dimensions. Be fair but thorough — real money is being paid based on your assessment.
 
 For each dimension, provide a score AND specific evidence from the image:
 
 1. RELEVANCE (0.0-1.0): Does this image actually show the work described in the task? A photo of a sunset does not prove someone designed a flyer. Score 0.0 if the image has nothing to do with the task.
 
-2. COMPLETENESS (0.0-1.0): Does the proof meet ALL requirements listed above? Go through each requirement one by one. If the requirements say "10 different locations" and you see 3, score proportionally. If a specific element is required (product name, QR code, etc.) and it's missing, deduct heavily.
+2. COMPLETENESS (0.0-1.0): Does the proof meet ALL requirements listed above? Go through each requirement one by one, applying semantic reasoning. If the requirements say "10 different locations" and you see 3, score proportionally. If a specific element is required (product name, QR code, etc.) and it's missing, deduct heavily. But if the worker achieved the goal through a reasonable equivalent approach, give full credit.
 
 3. QUALITY (0.0-1.0): Is the work professional and usable? For design tasks: is it print-ready, well-composed, free of typos? For physical tasks: are photos clear and well-lit? Score 0.0 for blurry, unreadable, or obviously rushed work.
 
@@ -160,13 +167,13 @@ export async function verifyProof(task: any, proofURI: string): Promise<VerifyRe
   let suggestion = "";
   if (!approved) {
     const issues: string[] = [];
-    if (fraudKillSwitch) issues.push(`Fraud detected: ${fraudResult.fraud_flags.join(", ")}`);
-    if (scores.relevance < 0.6) issues.push(`Image doesn't appear related to the task`);
-    if (scores.completeness < 0.6) issues.push(`Missing requirements: ${requirementsResult.completeness_evidence}`);
-    if (scores.quality < 0.6) issues.push(`Quality too low: ${requirementsResult.quality_evidence}`);
-    if (scores.consistency < 0.6) issues.push(`Doesn't match previous deliverable: ${crossVerifyResult?.mismatches?.join(", ")}`);
-    if (confidence < 0.75 && issues.length === 0) issues.push(`Overall confidence too low (${(confidence * 100).toFixed(0)}%). Please submit clearer proof.`);
-    suggestion = issues.join(" | ");
+    if (fraudKillSwitch) issues.push(`Your proof was flagged for possible fraud: ${fraudResult.fraud_flags.join(", ")}.`);
+    if (scores.relevance < 0.6) issues.push(`Your proof doesn't appear to show the work described in the task.`);
+    if (scores.completeness < 0.6) issues.push(`Some requirements weren't met: ${requirementsResult.completeness_evidence}`);
+    if (scores.quality < 0.6) issues.push(`The proof quality needs improvement: ${requirementsResult.quality_evidence}`);
+    if (scores.consistency < 0.6) issues.push(`Your proof doesn't match the previous task's deliverable: ${crossVerifyResult?.mismatches?.join(", ")}.`);
+    if (confidence < 0.75 && issues.length === 0) issues.push(`The overall confidence score was too low (${(confidence * 100).toFixed(0)}%). Please submit clearer proof.`);
+    suggestion = issues.join("\n");
   }
 
   return {

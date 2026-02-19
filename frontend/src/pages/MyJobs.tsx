@@ -63,7 +63,7 @@ function getTaskIcon(status: number) {
 const TASK_STATUS_LABEL: Record<number, string> = {
   0: "Pending",
   1: "Open",
-  2: "Accepted",
+  2: "In Progress",
   3: "Verifying",
   4: "Completed",
   5: "Cancelled",

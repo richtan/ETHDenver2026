@@ -27,7 +27,7 @@ import { useUploadProof } from "../hooks/useUploadProof";
 const TASK_STATUS = {
   0: { label: "Pending", color: "text-slate-400", icon: Clock },
   1: { label: "Open", color: "text-blue-400", icon: Clock },
-  2: { label: "Accepted", color: "text-amber-400", icon: CheckCircle2 },
+  2: { label: "In Progress", color: "text-amber-400", icon: CheckCircle2 },
   3: { label: "Pending Verification", color: "text-cyan-400", icon: Loader2 },
   4: { label: "Completed", color: "text-emerald-400", icon: CheckCircle2 },
   5: { label: "Cancelled", color: "text-red-400", icon: XCircle },
@@ -106,6 +106,13 @@ export default function TaskDetailPage() {
         rejectionReason: string;
       }
     | undefined;
+
+  // Reset proof submission state when the task gets rejected (status back to 2 with a reason)
+  useEffect(() => {
+    if (parsedTask?.rejectionReason && parsedTask?.status === 2) {
+      setProofSubmitted(false);
+    }
+  }, [parsedTask?.rejectionReason, parsedTask?.status]);
 
   const isWorker = parsedTask && address && parsedTask.worker.toLowerCase() === address.toLowerCase();
   const canAccept = parsedTask?.status === 1 && address && !accepting && !confirmingAccept;
@@ -291,7 +298,11 @@ export default function TaskDetailPage() {
               className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3"
             >
               <p className="text-sm font-medium text-red-400">Rejection reason</p>
-              <p className="mt-1 text-slate-300">{parsedTask.rejectionReason}</p>
+              <div className="mt-1 space-y-1">
+                {parsedTask.rejectionReason.split("\n").map((line, i) => (
+                  <p key={i} className="text-sm text-slate-300">{line}</p>
+                ))}
+              </div>
             </motion.div>
           )}
 
