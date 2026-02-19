@@ -17,7 +17,7 @@ import { useMyTasks } from "../hooks/useMyTasks";
 const TASK_STATUS = {
   0: { label: "Pending", color: "text-slate-400 bg-slate-800/50", icon: Clock },
   1: { label: "Open", color: "text-blue-400 bg-blue-500/20", icon: Clock },
-  2: { label: "Accepted", color: "text-amber-400 bg-amber-500/20", icon: CheckCircle2 },
+  2: { label: "In Progress", color: "text-amber-400 bg-amber-500/20", icon: CheckCircle2 },
   3: { label: "Pending Verification", color: "text-cyan-400 bg-cyan-500/20", icon: Loader2 },
   4: { label: "Completed", color: "text-emerald-400 bg-emerald-500/20", icon: CheckCircle2 },
   5: { label: "Cancelled", color: "text-red-400 bg-red-500/20", icon: ExternalLink },
