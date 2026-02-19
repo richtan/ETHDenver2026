@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { useAgentStream } from "../hooks/useAgentStream";
 import type { AgentAction, AgentTransaction } from "../hooks/useAgentStream";
-import { truncateAddress } from "../lib/formatEth";
+import { truncateAddress, formatUsd } from "../lib/formatEth";
+import { useEthPrice } from "../hooks/useEthPrice";
 
 const EXPLORER = "https://basescan.org/tx/";
 
@@ -52,14 +53,20 @@ const ACTION_GLOW: Record<string, string> = {
   job_completed: "shadow-purple-400/40",
 };
 
-function actionMessage(a: AgentAction): string {
+function ethToUsdStr(ethAmount: string | undefined, ethPrice: number | null): string {
+  if (!ethAmount || !ethPrice) return "";
+  const usd = parseFloat(ethAmount) * ethPrice;
+  return isNaN(usd) ? "" : ` (~${formatUsd(usd)})`;
+}
+
+function actionMessage(a: AgentAction, ethPrice: number | null): string {
   switch (a.type) {
     case "job_received":
       return `New job received: '${a.description ?? "Untitled"}'`;
     case "job_decomposed":
-      return `Decomposed job #${a.jobId} into ${a.taskCount ?? "?"} tasks. Margin: ${a.margin ?? "?"} ETH`;
+      return `Decomposed job #${a.jobId} into ${a.taskCount ?? "?"} tasks. Margin: ${a.margin ?? "?"} ETH${ethToUsdStr(a.margin, ethPrice)}`;
     case "task_posted":
-      return `Posted task: '${a.description ?? "Untitled"}' — ${a.reward ?? "?"} ETH`;
+      return `Posted task: '${a.description ?? "Untitled"}' — ${a.reward ?? "?"} ETH${ethToUsdStr(a.reward, ethPrice)}`;
     case "task_accepted":
       return `Worker ${a.worker ? truncateAddress(a.worker) : "unknown"} accepted task #${a.taskId}`;
     case "proof_submitted":
@@ -69,11 +76,11 @@ function actionMessage(a: AgentAction): string {
     case "proof_rejected":
       return `Proof rejected: '${a.reason ?? "Unknown reason"}'`;
     case "worker_paid":
-      return `Paid worker ${a.amount ?? "?"} ETH`;
+      return `Paid worker ${a.amount ?? "?"} ETH${ethToUsdStr(a.amount, ethPrice)}`;
     case "next_task_opened":
       return `Next task opened for job #${a.jobId}`;
     case "job_completed":
-      return `Job #${a.jobId} complete! Profit: ${a.profit ?? "?"} ETH`;
+      return `Job #${a.jobId} complete! Profit: ${a.profit ?? "?"} ETH${ethToUsdStr(a.profit, ethPrice)}`;
     case "compute_reimbursed":
       return `Reimbursed $${a.amount_usd ?? "?"} compute`;
     case "ai_service_sold":
@@ -171,7 +178,7 @@ function BreakdownBar({ label, pct, color }: { label: string; pct: number; color
   );
 }
 
-function TxRow({ tx }: { tx: AgentTransaction }) {
+function TxRow({ tx, ethPrice }: { tx: AgentTransaction; ethPrice: number | null }) {
   return (
     <tr className="border-b border-slate-800/40 text-sm transition-colors hover:bg-slate-800/20">
       <td className="py-2.5 pr-3 font-mono text-xs text-slate-500 whitespace-nowrap">
@@ -179,7 +186,7 @@ function TxRow({ tx }: { tx: AgentTransaction }) {
       </td>
       <td className="py-2.5 pr-3 text-slate-300 capitalize">{tx.action.replace(/_/g, " ")}</td>
       <td className="py-2.5 pr-3 font-mono text-slate-200">
-        {tx.amount ? `${tx.amount} ETH` : "—"}
+        {tx.amount ? <>{tx.amount} ETH<span className="text-slate-500 text-xs">{ethToUsdStr(tx.amount, ethPrice)}</span></> : "—"}
       </td>
       <td className="py-2.5 font-mono text-xs">
         {tx.hash ? (
@@ -202,6 +209,7 @@ function TxRow({ tx }: { tx: AgentTransaction }) {
 
 export default function AgentDashboard() {
   const { actions, metrics, transactions, connected } = useAgentStream();
+  const { ethPrice } = useEthPrice();
   const feedRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -308,7 +316,7 @@ export default function AgentDashboard() {
 
                       <div className="flex-1 min-w-0">
                         <p className="text-sm leading-snug text-slate-200">
-                          {actionMessage(a)}
+                          {actionMessage(a, ethPrice)}
                         </p>
                         <div className="mt-1 flex items-center gap-3">
                           <span className="flex items-center gap-1 text-xs text-slate-600">
@@ -450,7 +458,7 @@ export default function AgentDashboard() {
                           {tx.action.replace(/_/g, " ")}
                         </td>
                         <td className="py-2.5 pr-3 font-mono text-slate-200">
-                          {tx.amount ? `${tx.amount} ETH` : "—"}
+                          {tx.amount ? <>{tx.amount} ETH<span className="text-slate-500 text-xs">{ethToUsdStr(tx.amount, ethPrice)}</span></> : "—"}
                         </td>
                         <td className="py-2.5 pr-5 font-mono text-xs">
                           {tx.hash ? (

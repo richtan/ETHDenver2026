@@ -26,7 +26,8 @@ import {
 } from '../hooks/useRecommendedTasks';
 import { useTaskTags } from '../hooks/useTaskTags';
 import { WorkerProfilePanel } from '../components/WorkerProfilePanel';
-import { formatEth } from '../lib/formatEth';
+import { formatEth, ethToUsd } from '../lib/formatEth';
+import { useEthPrice } from '../hooks/useEthPrice';
 
 type TaskStruct = {
   id: bigint;
@@ -121,6 +122,7 @@ function TaskCard({
   workerTags?: string[];
   recommendation?: TaskRecommendation;
 }) {
+  const { ethPrice } = useEthPrice();
   const { id, jobId, description, reward, deadline } = task;
   const deadlineStr = formatDeadline(deadline);
   const isExpired = deadlineStr === 'Expired';
@@ -176,6 +178,11 @@ function TaskCard({
         <span className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-400">
           <Coins className="h-4 w-4" />
           {formatEth(reward)} ETH
+          {ethPrice && (
+            <span className="ml-1 text-slate-500 text-xs font-normal">
+              (~${ethToUsd(reward, ethPrice)})
+            </span>
+          )}
         </span>
         <span
           className={`inline-flex items-center gap-1.5 text-sm ${
@@ -366,7 +373,7 @@ export default function WorkerMarketplace() {
           )}
         </div>
         <p className="mt-3 text-lg text-slate-400">
-          Browse open tasks and accept work to earn ETH on Base.
+          Browse open tasks and accept work to earn on Base.
         </p>
       </motion.section>
 

@@ -19,7 +19,8 @@ import {
 import { useClientJobs } from "../hooks/useClientJobs";
 import { useJob } from "../hooks/useJob";
 import { useAiTasks, type AiTaskResult } from "../hooks/useAiTasks";
-import { formatEth } from "../lib/formatEth";
+import { formatEth, ethToUsd } from "../lib/formatEth";
+import { useEthPrice } from "../hooks/useEthPrice";
 import { ipfsToHttp } from "../config/pinata";
 
 const JOB_STATUS = ["Created", "InProgress", "Completed", "Cancelled"] as const;
@@ -154,6 +155,7 @@ function ProofImageGallery({ proofURI }: { proofURI: string }) {
 }
 
 function TaskResultRow({ task }: { task: TaskData }) {
+  const { ethPrice } = useEthPrice();
   const isCompleted = task.status === 4;
   const hasProof = task.proofURI && task.proofURI.length > 0;
 
@@ -196,6 +198,11 @@ function TaskResultRow({ task }: { task: TaskData }) {
           <div className="flex shrink-0 items-center gap-2">
             <span className="text-xs text-amber-400/80">
               {formatEth(task.reward)} ETH
+              {ethPrice && (
+                <span className="ml-1 text-slate-500">
+                  (~${ethToUsd(task.reward, ethPrice)})
+                </span>
+              )}
             </span>
             {isCompleted && (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
@@ -300,6 +307,7 @@ function AiTaskRow({ task }: { task: AiTaskResult }) {
 }
 
 function ExpandableJobCard({ jobId }: { jobId: bigint }) {
+  const { ethPrice } = useEthPrice();
   const { job, tasks, isLoading } = useJob(jobId);
   const { aiTasks: rawAiTasks } = useAiTasks(jobId);
   const jobIdStr = jobId.toString();
@@ -364,6 +372,11 @@ function ExpandableJobCard({ jobId }: { jobId: bigint }) {
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-blue-400">
               {formatEth(jobData.totalBudget)} ETH
+              {ethPrice && (
+                <span className="ml-1 text-slate-500 font-normal text-xs">
+                  (~${ethToUsd(jobData.totalBudget, ethPrice)})
+                </span>
+              )}
             </span>
             <span
               className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusBadgeClass}`}

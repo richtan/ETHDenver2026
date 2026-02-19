@@ -15,6 +15,8 @@ import {
   SkipForward,
 } from 'lucide-react';
 import { useCreateJob } from '../hooks/useCreateJob';
+import { useEthPrice } from '../hooks/useEthPrice';
+import { usdToEth } from '../lib/formatEth';
 import { AGENT_API_URL } from '../config/wagmi';
 
 interface TaskPreview {
@@ -43,6 +45,7 @@ function ClarificationView({
   onCreateJob,
   onSkip,
   isCreating,
+  ethPrice,
 }: {
   description: string;
   budget: string;
@@ -55,6 +58,7 @@ function ClarificationView({
   onCreateJob: () => void;
   onSkip: () => void;
   isCreating: boolean;
+  ethPrice: number | null;
 }) {
   const [answers, setAnswers] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -93,7 +97,7 @@ function ClarificationView({
               <div className="rounded-lg bg-slate-800/60 px-4 py-2.5 text-sm text-slate-300">
                 {description}
                 <span className="ml-2 text-xs text-slate-500">
-                  ({budget} ETH)
+                  (${budget} USD)
                 </span>
               </div>
             </div>
@@ -317,6 +321,9 @@ function ClarificationView({
                           <div className="pl-7 flex items-center gap-1 text-xs text-amber-400">
                             <Coins className="h-3 w-3" />
                             {task.reward} ETH
+                            <span className="text-slate-500 ml-1">
+                              (~${(parseFloat(task.reward) * (ethPrice ?? 0)).toFixed(2)})
+                            </span>
                           </div>
                         </>
                       )}
@@ -337,6 +344,7 @@ function ClarificationView({
 export default function ClientPortal() {
   const { isConnected } = useAccount();
   const { createJob, isPending, isConfirming, isSuccess } = useCreateJob();
+  const { ethPrice } = useEthPrice();
   const navigate = useNavigate();
 
   const [description, setDescription] = useState('');
@@ -357,7 +365,8 @@ export default function ClientPortal() {
 
   const budgetNum = parseFloat(budget);
   const canStartClarify =
-    description.length >= 10 && !isNaN(budgetNum) && budgetNum >= 0.001;
+    description.length >= 10 && !isNaN(budgetNum) && budgetNum >= 1;
+  const ethEquivalent = ethPrice && budgetNum > 0 ? usdToEth(budgetNum, ethPrice) : null;
   const isCreating = isPending || isConfirming;
 
   useEffect(() => {
@@ -423,12 +432,16 @@ export default function ClientPortal() {
   }
 
   function handleCreateJob() {
+    if (!ethPrice) return;
     const desc = enrichedDescription || description;
-    createJob(desc, budget);
+    const ethAmount = usdToEth(budgetNum, ethPrice);
+    createJob(desc, ethAmount);
   }
 
   function handleSkip() {
-    createJob(description, budget);
+    if (!ethPrice) return;
+    const ethAmount = usdToEth(budgetNum, ethPrice);
+    createJob(description, ethAmount);
   }
 
   function handleBack() {
@@ -516,7 +529,7 @@ export default function ClientPortal() {
                     htmlFor="budget"
                     className="mb-2 block text-sm font-medium text-slate-400"
                   >
-                    Budget (ETH)
+                    Budget (USD)
                   </label>
                   <input
                     id="budget"
@@ -524,11 +537,18 @@ export default function ClientPortal() {
                     inputMode="decimal"
                     value={budget}
                     onChange={(e) => setBudget(e.target.value)}
-                    placeholder="0.001"
-                    min={0.001}
+                    placeholder="10"
+                    min={1}
                     className="w-full rounded-lg border border-slate-700/60 bg-slate-800/40 px-4 py-3 text-white placeholder-slate-500 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
                   />
-                  <p className="mt-1 text-xs text-slate-500">Min 0.001 ETH</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Min $1 USD
+                    {ethEquivalent && (
+                      <span className="ml-2 text-slate-400">
+                        &asymp; {ethEquivalent} ETH @ ${ethPrice?.toLocaleString()}/ETH
+                      </span>
+                    )}
+                  </p>
                 </div>
                 <motion.button
                   type="submit"
@@ -580,6 +600,7 @@ export default function ClientPortal() {
                 onCreateJob={handleCreateJob}
                 onSkip={handleSkip}
                 isCreating={isCreating}
+                ethPrice={ethPrice}
               />
             </motion.div>
           )}

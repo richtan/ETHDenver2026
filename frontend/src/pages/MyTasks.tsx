@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { CONTRACT_ADDRESS } from "../config/wagmi";
 import { JOB_MARKETPLACE_ABI } from "../abi/JobMarketplace";
-import { formatEth } from "../lib/formatEth";
+import { formatEth, ethToUsd } from "../lib/formatEth";
+import { useEthPrice } from "../hooks/useEthPrice";
 import { useMyTasks } from "../hooks/useMyTasks";
 
 const TASK_STATUS = {
@@ -46,6 +47,7 @@ type TaskData = {
 };
 
 function TaskRow({ taskId }: { taskId: bigint }) {
+  const { ethPrice } = useEthPrice();
   const { data: task, isLoading } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: JOB_MARKETPLACE_ABI,
@@ -113,6 +115,11 @@ function TaskRow({ taskId }: { taskId: bigint }) {
         <span className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-400">
           <Clock className="h-4 w-4" />
           {formatEth(parsedTask.reward)} ETH
+          {ethPrice && (
+            <span className="ml-1 text-slate-500 text-xs">
+              (~${ethToUsd(parsedTask.reward, ethPrice)})
+            </span>
+          )}
         </span>
       </div>
 

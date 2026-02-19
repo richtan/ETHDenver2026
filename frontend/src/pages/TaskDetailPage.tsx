@@ -19,7 +19,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { CONTRACT_ADDRESS } from '../config/wagmi';
 import { JOB_MARKETPLACE_ABI } from '../abi/JobMarketplace';
 import { ipfsToHttp } from '../config/pinata';
-import { formatEth } from '../lib/formatEth';
+import { formatEth, ethToUsd } from '../lib/formatEth';
+import { useEthPrice } from '../hooks/useEthPrice';
 import { useAcceptTask } from '../hooks/useAcceptTask';
 import { useSubmitProof } from '../hooks/useSubmitProof';
 import { useUploadProof } from '../hooks/useUploadProof';
@@ -52,6 +53,7 @@ const cardVariants = {
 export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const { address } = useAccount();
+  const { ethPrice } = useEthPrice();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from;
   const backTo =
@@ -345,6 +347,11 @@ export default function TaskDetailPage() {
               <Coins className="h-4 w-4" />
               <span className="font-medium">
                 {formatEth(parsedTask.reward)} ETH
+                {ethPrice && (
+                  <span className="ml-1 text-slate-500 text-sm font-normal">
+                    (~${ethToUsd(parsedTask.reward, ethPrice)})
+                  </span>
+                )}
               </span>
             </span>
             <span
