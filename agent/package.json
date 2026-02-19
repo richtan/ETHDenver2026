@@ -5,24 +5,27 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:e2e": "cd .. && ./test-e2e.sh"
   },
   "dependencies": {
-    "viem": "^2.21.0",
-    "openai": "^4.70.0",
-    "express": "^4.21.0",
-    "cors": "^2.8.5",
     "@coinbase/agentkit": "^0.10.4",
-    "@x402/express": "^2.3.0",
-    "@x402/evm": "^2.3.1",
     "@x402/core": "^2.3.1",
-    "dotenv": "^16.4.0"
+    "@x402/evm": "^2.3.1",
+    "@x402/express": "^2.3.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "openai": "^4.70.0",
+    "viem": "^2.21.0"
   },
   "devDependencies": {
-    "typescript": "^5.6.0",
-    "tsx": "^4.19.0",
-    "@types/express": "^5.0.0",
     "@types/cors": "^2.8.17",
-    "@types/node": "^22.0.0"
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.0.18"
   }
 }

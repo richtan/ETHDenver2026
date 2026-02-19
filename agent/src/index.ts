@@ -3,6 +3,7 @@ import { config, NETWORK } from "./config.js";
 import { publicClient } from "./client.js";
 import { createAgentWallet } from "./wallet.js";
 import { setAgentWallet } from "./actions/marketplace.js";
+import { setRouteWallet } from "./x402/routes.js";
 import { JobOrchestrator } from "./orchestrator.js";
 import { recoverState } from "./recovery.js";
 import { startScheduler } from "./scheduler.js";
@@ -43,6 +44,7 @@ async function main() {
   }
 
   setAgentWallet(wallet);
+  setRouteWallet(wallet);
 
   const orchestrator = new JobOrchestrator();
 
