@@ -297,7 +297,7 @@ export default function ClientPortal() {
   const canStartClarify =
     description.length >= 10 &&
     !isNaN(budgetNum) &&
-    budgetNum >= 0.001;
+    budgetNum >= 0.0001;
   const isCreating = isPending || isConfirming;
 
   useEffect(() => {
@@ -322,7 +322,10 @@ export default function ClientPortal() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ description, budget, conversation: convo }),
       });
-      if (!res.ok) throw new Error("Clarification request failed");
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error || "Clarification request failed");
+      }
       const data = await res.json();
       if (data.taskPreview) setTaskPreview(data.taskPreview);
       if (data.ready) {
@@ -455,11 +458,11 @@ export default function ClientPortal() {
                     inputMode="decimal"
                     value={budget}
                     onChange={(e) => setBudget(e.target.value)}
-                    placeholder="0.001"
-                    min={0.001}
+                    placeholder="0.0001"
+                    min={0.0001}
                     className="w-full rounded-lg border border-slate-700/60 bg-slate-800/40 px-4 py-3 text-white placeholder-slate-500 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
                   />
-                  <p className="mt-1 text-xs text-slate-500">Min 0.001 ETH</p>
+                  <p className="mt-1 text-xs text-slate-500">Min 0.0001 ETH</p>
                 </div>
                 <motion.button
                   type="submit"

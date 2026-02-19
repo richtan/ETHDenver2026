@@ -211,7 +211,7 @@ function TaskResultRow({ task }: { task: TaskData }) {
 
 function ExpandableJobCard({ jobId }: { jobId: bigint }) {
   const { job, tasks, isLoading } = useJob(jobId);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   if (isLoading || !job) {
     return (

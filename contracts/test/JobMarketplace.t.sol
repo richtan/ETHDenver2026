@@ -87,8 +87,8 @@ contract JobMarketplaceTest is Test {
 
     function test_createJob_revertMinBudget() public {
         vm.prank(client);
-        vm.expectRevert("Minimum budget 0.001 ETH");
-        marketplace.createJob{value: 0.0009 ether}("test");
+        vm.expectRevert("Minimum budget 0.0001 ETH");
+        marketplace.createJob{value: 0.00009 ether}("test");
     }
 
     function test_createJob_revertEmptyDescription() public {
