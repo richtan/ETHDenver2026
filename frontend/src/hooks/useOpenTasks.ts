@@ -7,6 +7,6 @@ export function useOpenTasks() {
     address: CONTRACT_ADDRESS,
     abi: JOB_MARKETPLACE_ABI,
     functionName: "getOpenTasks",
-    query: { refetchInterval: 10_000 },
+    query: { refetchInterval: 3_000 },
   });
 }

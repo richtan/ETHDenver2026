@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -9,6 +9,7 @@ import {
   ArrowRight,
   Loader2,
   Briefcase,
+  CheckCircle2,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useOpenTasks } from '../hooks/useOpenTasks';
@@ -169,22 +170,30 @@ function TaskCard({
 
 export default function WorkerMarketplace() {
   const { isConnected } = useAccount();
+  const navigate = useNavigate();
   const { data: tasks, isLoading: tasksLoading } = useOpenTasks();
   const { acceptTask, isPending, isConfirming, isSuccess, error } =
     useAcceptTask();
 
   const [acceptingTaskId, setAcceptingTaskId] = useState<bigint | null>(null);
+  const [hiddenTaskIds, setHiddenTaskIds] = useState<Set<bigint>>(new Set());
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isSuccess) return;
-    const id = setTimeout(() => setAcceptingTaskId(null), 0);
-    return () => clearTimeout(id);
-  }, [isSuccess]);
+    if (!isSuccess || acceptingTaskId === null) return;
+    setHiddenTaskIds((prev) => new Set(prev).add(acceptingTaskId));
+    setSuccessBanner(`Task #${acceptingTaskId.toString()} accepted!`);
+    const navTimer = setTimeout(() => {
+      navigate(`/work/${acceptingTaskId.toString()}`);
+    }, 1500);
+    return () => clearTimeout(navTimer);
+  }, [isSuccess, acceptingTaskId, navigate]);
 
   const taskList: TaskStruct[] = Array.isArray(tasks)
     ? tasks.filter(
         (t): t is TaskStruct =>
-          t != null && typeof t === 'object' && 'id' in t && 'jobId' in t
+          t != null && typeof t === 'object' && 'id' in t && 'jobId' in t &&
+          !hiddenTaskIds.has(t.id)
       )
     : [];
   const canAccept = isConnected && !isPending && !isConfirming;
@@ -224,6 +233,17 @@ export default function WorkerMarketplace() {
           className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400"
         >
           {error.message}
+        </motion.div>
+      )}
+
+      {successBanner && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400"
+        >
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {successBanner} Redirecting to task details…
         </motion.div>
       )}
 

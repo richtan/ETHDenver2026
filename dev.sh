@@ -2,9 +2,16 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+ENV_LOCAL="$ROOT/.env.local"
 ANVIL_PID=""
 AGENT_PID=""
 FRONTEND_PID=""
+
+# Handle --reset flag to force re-prompting of secrets
+if [ "${1:-}" = "--reset" ]; then
+  echo "Resetting saved secrets..."
+  rm -f "$ENV_LOCAL"
+fi
 
 cleanup() {
   echo ""
@@ -16,6 +23,51 @@ cleanup() {
   echo "Done."
 }
 trap cleanup EXIT INT TERM
+
+# ── Helpers ────────────────────────────────────────────────────
+load_env_local() {
+  if [ -f "$ENV_LOCAL" ]; then
+    set -a
+    source "$ENV_LOCAL"
+    set +a
+  fi
+}
+
+save_env_local() {
+  cat > "$ENV_LOCAL" <<EOF
+OPENAI_API_KEY=$OPENAI_API_KEY
+PINATA_JWT=${PINATA_JWT:-}
+PINATA_GATEWAY=${PINATA_GATEWAY:-https://gateway.pinata.cloud}
+EOF
+  echo "  Saved secrets to .env.local"
+}
+
+prompt_secret() {
+  local var_name="$1" prompt_msg="$2" required="$3" default_val="${4:-}"
+  local current_val="${!var_name:-}"
+
+  if [ -n "$current_val" ]; then
+    return
+  fi
+
+  if [ "$required" = "true" ]; then
+    while [ -z "$current_val" ]; do
+      printf "  %s: " "$prompt_msg"
+      read -r current_val
+      if [ -z "$current_val" ]; then
+        echo "  (required -- cannot be empty)"
+      fi
+    done
+  else
+    printf "  %s: " "$prompt_msg"
+    read -r current_val
+    if [ -z "$current_val" ] && [ -n "$default_val" ]; then
+      current_val="$default_val"
+    fi
+  fi
+
+  export "$var_name=$current_val"
+}
 
 # ── Prerequisites ──────────────────────────────────────────────
 echo "Checking prerequisites..."
@@ -30,10 +82,24 @@ if ! command -v node &>/dev/null; then
   exit 1
 fi
 
-if [ -z "${OPENAI_API_KEY:-}" ]; then
-  echo "ERROR: OPENAI_API_KEY not set. Export it first:"
-  echo "  export OPENAI_API_KEY=sk-..."
-  exit 1
+# ── Secrets setup ──────────────────────────────────────────────
+load_env_local
+
+NEEDS_PROMPT=false
+if [ -z "${OPENAI_API_KEY:-}" ] || [ -z "${PINATA_JWT:-}" ]; then
+  NEEDS_PROMPT=true
+fi
+
+if [ "$NEEDS_PROMPT" = "true" ]; then
+  echo ""
+  echo "Configuring secrets (saved to .env.local for future runs)..."
+  prompt_secret "OPENAI_API_KEY"  "Enter your OpenAI API key"                          "true"
+  prompt_secret "PINATA_JWT"      "Enter Pinata JWT for IPFS uploads (Enter to skip)"  "false"
+  prompt_secret "PINATA_GATEWAY"  "Pinata gateway URL (Enter for default)"             "false" "https://gateway.pinata.cloud"
+  save_env_local
+  echo ""
+else
+  echo "  Secrets loaded from .env.local"
 fi
 
 # ── Install dependencies ──────────────────────────────────────
@@ -61,7 +127,7 @@ fi
 echo "Anvil running (pid $ANVIL_PID)"
 
 # Anvil deterministic addresses:
-#   Account 0 = Agent   (0xf39F...2266)
+#   Account 0 = Agent    (0xf39F...2266)
 #   Account 1 = Deployer (0x7099...79C8)
 #   Account 2+ = Test users
 AGENT_ADDR="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
@@ -89,6 +155,8 @@ CONTRACT_ADDRESS=$CONTRACT_ADDRESS
 DEPLOYMENT_BLOCK=0
 AGENT_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 OPENAI_API_KEY=$OPENAI_API_KEY
+PINATA_JWT=${PINATA_JWT:-}
+PINATA_GATEWAY=${PINATA_GATEWAY:-https://gateway.pinata.cloud}
 PORT=3001
 EOF
 
@@ -97,8 +165,8 @@ VITE_CHAIN=localhost
 VITE_CONTRACT_ADDRESS=$CONTRACT_ADDRESS
 VITE_AGENT_API_URL=http://localhost:3001
 VITE_WALLETCONNECT_PROJECT_ID=placeholder-for-dev
-VITE_PINATA_JWT=
-VITE_PINATA_GATEWAY=https://gateway.pinata.cloud
+VITE_PINATA_JWT=${PINATA_JWT:-}
+VITE_PINATA_GATEWAY=${PINATA_GATEWAY:-https://gateway.pinata.cloud}
 EOF
 
 echo "Environment files written."
@@ -130,6 +198,11 @@ echo "  Test wallets (import into MetaMask):"
 echo "    Client:  0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
 echo "    Worker:  0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6"
 echo ""
+if [ -z "${PINATA_JWT:-}" ]; then
+  echo "  WARNING: No Pinata JWT configured. IPFS proof uploads will fail."
+  echo "  Run this script again or edit .env.local to add PINATA_JWT."
+  echo ""
+fi
 echo "  Press Ctrl+C to stop everything."
 echo ""
 

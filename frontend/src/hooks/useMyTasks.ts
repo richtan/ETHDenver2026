@@ -9,7 +9,7 @@ export function useMyTasks() {
     abi: JOB_MARKETPLACE_ABI,
     functionName: "getWorkerTasks",
     args: address ? [address] : undefined,
-    query: { enabled: !!address, refetchInterval: 10_000 },
+    query: { enabled: !!address, refetchInterval: 3_000 },
   });
   return { taskIds: result.data as bigint[] | undefined, isLoading: result.isLoading };
 }

@@ -86,6 +86,17 @@ export async function verifyProof(task: any, proofURI: string): Promise<VerifyRe
   }
 
   const imageUrl = ipfsToHttpGateway(proofURI);
+
+  if (!imageUrl || imageUrl.includes("undefined") || !imageUrl.startsWith("http")) {
+    return {
+      approved: false,
+      confidence: 0,
+      scores: { authenticity: 0, relevance: 0, completeness: 0, quality: 0, consistency: 0 },
+      reasoning: `Invalid proof URI: "${proofURI}". The worker's upload likely failed.`,
+      suggestion: "Worker submitted an invalid proof URI. Please re-upload a valid image.",
+    };
+  }
+
   const prevDeliverableUri = await readPreviousDeliverable(task.jobId, task.id);
   const prevDeliverableUrl = prevDeliverableUri ? ipfsToHttpGateway(prevDeliverableUri) : null;
 

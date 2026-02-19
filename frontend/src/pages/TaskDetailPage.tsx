@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAccount, useReadContract } from "wagmi";
 import { motion } from "framer-motion";
@@ -54,12 +54,14 @@ export default function TaskDetailPage() {
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [proofSubmitted, setProofSubmitted] = useState(false);
 
   const { data: task, isLoading: taskLoading } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: JOB_MARKETPLACE_ABI,
     functionName: "getTask",
     args: taskId ? [BigInt(taskId)] : undefined,
+    query: { refetchInterval: 3_000 },
   });
 
   const jobId = task ? (task as { jobId: bigint }).jobId : undefined;
@@ -74,7 +76,11 @@ export default function TaskDetailPage() {
 
   const { acceptTask, isPending: accepting, isConfirming: confirmingAccept, isSuccess: acceptSuccess } = useAcceptTask();
   const { submitProof, isPending: submitting, isConfirming: confirmingSubmit, isSuccess: submitSuccess } = useSubmitProof();
-  const { upload, uploading, ipfsUri } = useUploadProof();
+  const { upload, uploading, ipfsUri, error: uploadError } = useUploadProof();
+
+  useEffect(() => {
+    if (submitSuccess) setProofSubmitted(true);
+  }, [submitSuccess]);
 
   const parsedTask = task as
     | {
@@ -98,7 +104,9 @@ export default function TaskDetailPage() {
   const isWorker = parsedTask && address && parsedTask.worker.toLowerCase() === address.toLowerCase();
   const canAccept = parsedTask?.status === 1 && address && !accepting && !confirmingAccept;
   const showProofUpload =
-    parsedTask?.status === 2 && isWorker && address;
+    parsedTask?.status === 2 && isWorker && address && !proofSubmitted;
+  const showProofVerifying =
+    (parsedTask?.status === 2 && proofSubmitted) || false;
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -249,7 +257,7 @@ export default function TaskDetailPage() {
             </motion.div>
           )}
 
-          {parsedTask.status === 1 && canAccept && (
+          {parsedTask.status === 1 && canAccept && !acceptSuccess && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -273,6 +281,19 @@ export default function TaskDetailPage() {
                   </>
                 )}
               </button>
+            </motion.div>
+          )}
+
+          {acceptSuccess && parsedTask.status === 1 && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3"
+            >
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+              <p className="text-sm text-emerald-400">
+                Task accepted! You can now submit your proof below.
+              </p>
             </motion.div>
           )}
         </motion.section>
@@ -348,6 +369,12 @@ export default function TaskDetailPage() {
                     </button>
                   </div>
 
+                  {uploadError && (
+                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+                      <p className="text-sm text-red-400">{uploadError}</p>
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap gap-2">
                     {!ipfsUri ? (
                       <>
@@ -379,8 +406,9 @@ export default function TaskDetailPage() {
                       </>
                     ) : (
                       <>
-                        <p className="flex-1 truncate rounded-lg border border-slate-700/60 bg-slate-800/50 px-3 py-2 text-xs text-slate-400">
-                          {ipfsUri}
+                        <p className="flex flex-1 items-center gap-2 truncate rounded-lg border border-slate-700/60 bg-slate-800/50 px-3 py-2 text-xs text-slate-400">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                          <span className="truncate">{ipfsUri}</span>
                         </p>
                         <button
                           type="button"
@@ -406,6 +434,26 @@ export default function TaskDetailPage() {
                 </div>
               )}
             </div>
+          </motion.section>
+        )}
+
+        {showProofVerifying && (
+          <motion.section
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            className="rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-6 backdrop-blur-sm"
+          >
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-cyan-400" />
+              <h3 className="text-sm font-medium text-cyan-400">
+                Proof Submitted
+              </h3>
+            </div>
+            <p className="mt-3 text-sm text-slate-400">
+              Your proof has been submitted on-chain. The AI agent is analyzing
+              your work and will verify it shortly.
+            </p>
           </motion.section>
         )}
 

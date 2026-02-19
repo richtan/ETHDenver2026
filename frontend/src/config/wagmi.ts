@@ -40,6 +40,7 @@ const connectors = connectorsForWallets(
 export const wagmiConfig = createConfig({
   connectors,
   chains: [activeChain],
+  pollingInterval: 4_000,
   transports: {
     [activeChain.id]: http(),
   },

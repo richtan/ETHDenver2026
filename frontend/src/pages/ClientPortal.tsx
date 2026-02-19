@@ -116,6 +116,15 @@ function JobCard({ jobId }: { jobId: bigint }) {
         </div>
       </div>
 
+      {(jobData.status === 0 || jobData.status === 1) && totalCount === 0 && (
+        <div className="mt-4 border-t border-slate-800/60 pt-4">
+          <div className="flex items-center gap-3 text-blue-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">AI agent is analyzing and decomposing your job...</span>
+          </div>
+        </div>
+      )}
+
       {taskList.length > 0 && (
         <div className="mt-4 border-t border-slate-800/60 pt-4">
           <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">
