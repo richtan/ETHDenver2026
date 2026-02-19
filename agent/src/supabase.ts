@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { type AiTaskResult } from "./types.js";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
@@ -77,6 +78,37 @@ export async function getAllTaskTags() {
     return [];
   }
   return data ?? [];
+}
+
+export async function saveAiTaskResult(result: AiTaskResult) {
+  if (!supabase) {
+    console.warn("Supabase not configured — skipping saveAiTaskResult");
+    return null;
+  }
+  const { data, error } = await supabase
+    .from("ai_task_results")
+    .upsert(result, { onConflict: "id" })
+    .select()
+    .single();
+  if (error) {
+    console.error("saveAiTaskResult error:", error);
+    return null;
+  }
+  return data;
+}
+
+export async function getAiTaskResults(jobId: string): Promise<AiTaskResult[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("ai_task_results")
+    .select("*")
+    .eq("job_id", jobId)
+    .order("sequence_index", { ascending: true });
+  if (error) {
+    console.error("getAiTaskResults error:", error);
+    return [];
+  }
+  return (data ?? []) as AiTaskResult[];
 }
 
 function jaccardSimilarity(a: string[], b: string[]): number {

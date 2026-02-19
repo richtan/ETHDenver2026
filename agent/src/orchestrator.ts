@@ -5,6 +5,8 @@ import { JOB_MARKETPLACE_ABI } from "./abi.js";
 import { costTracker } from "./cost-tracker.js";
 import { decomposeJob } from "./decomposer.js";
 import { verifyProof } from "./verifier.js";
+import { executeAiTask } from "./ai-executor.js";
+import { type AiTaskResult } from "./types.js";
 import { readJobFromContract, readTaskFromContract } from "./contract-reads.js";
 import { addTaskOnChain, approveTaskOnChain, completeJobOnChain, rejectProofOnChain } from "./actions/marketplace.js";
 import { ethToUsd } from "./price-feed.js";
@@ -124,47 +126,105 @@ export class JobOrchestrator extends EventEmitter {
       const taskPlan = await decomposeJob(description, budget);
       costTracker.logCost({ type: "openai", amount_usd: 0.02, details: "decompose-job" });
 
-      const totalWorkerCost = taskPlan.reduce(
+      const humanTasks = taskPlan.filter(t => t.executorType === "human");
+      const totalWorkerCost = humanTasks.reduce(
         (sum, t) => sum + parseEther(t.reward), 0n
       );
-      if (taskPlan.length === 0 || totalWorkerCost >= budget) {
-        console.error(`Bad decomposition: ${taskPlan.length} tasks, cost ${totalWorkerCost} >= budget ${budget}`);
+      if (taskPlan.length === 0) {
+        console.error(`Empty decomposition for job ${jobId}`);
+        return;
+      }
+      if (humanTasks.length > 0 && totalWorkerCost >= budget) {
+        console.error(`Bad decomposition: cost ${totalWorkerCost} >= budget ${budget}`);
         return;
       }
 
       const margin = formatEther(budget - totalWorkerCost);
       this.emit("action", { type: "job_decomposed", jobId: jobId.toString(),
-        taskCount: taskPlan.length, margin, timestamp: Date.now() });
+        taskCount: taskPlan.length,
+        aiTaskCount: taskPlan.filter(t => t.executorType === "ai").length,
+        humanTaskCount: humanTasks.length,
+        margin, timestamp: Date.now() });
 
-      const nextId = await publicClient.readContract({
-        address: config.contractAddress,
-        abi: JOB_MARKETPLACE_ABI,
-        functionName: "nextTaskId",
-      }) as bigint;
-
+      // Phase 1: Execute AI tasks sequentially (they may depend on each other)
+      const aiResults: AiTaskResult[] = [];
       for (let i = 0; i < taskPlan.length; i++) {
         const task = taskPlan[i];
-        const txHash = await addTaskOnChain(jobId, {
-          description: task.description,
-          proofRequirements: task.proofRequirements,
-          reward: parseEther(task.reward),
-          deadlineSeconds: BigInt(task.deadlineMinutes * 60),
-          maxRetries: 3n,
-        }, i);
-        costTracker.logCost({ type: "gas", amount_usd: 0.001, details: `addTask-${i}` });
+        if (task.executorType !== "ai") continue;
 
-        const taskId = (nextId + BigInt(i)).toString();
-        if (task.tags && task.tags.length > 0) {
-          setTaskTags(taskId, task.tags, jobId.toString()).catch((err) =>
-            console.error(`Failed to store tags for task ${taskId}:`, err),
-          );
-        }
+        this.emit("action", { type: "ai_task_started", jobId: jobId.toString(),
+          description: task.description, sequenceIndex: i, timestamp: Date.now() });
 
-        this.emit("action", { type: "task_posted", jobId: jobId.toString(),
-          description: task.description, reward: task.reward, timestamp: Date.now() });
-        this.emit("transaction", { action: "Add task", hash: txHash, timestamp: Date.now() });
+        const result = await executeAiTask(jobId.toString(), i, task.description, aiResults);
+        costTracker.logCost({ type: "openai", amount_usd: 0.02, details: `ai-task-${i}` });
+        aiResults.push(result);
+
+        this.emit("action", { type: "ai_task_completed", jobId: jobId.toString(),
+          description: task.description, sequenceIndex: i,
+          status: result.status, timestamp: Date.now() });
       }
-      this.jobTaskCounts.set(jobId, taskPlan.length);
+
+      // Build concise context from AI key facts to inject into human task descriptions
+      const allKeyFacts = aiResults
+        .filter(r => r.status === "completed")
+        .flatMap(r => r.key_facts);
+      const aiContext = allKeyFacts.length > 0
+        ? allKeyFacts.map(f => `- ${f}`).join("\n")
+        : "";
+
+      // Phase 2: Post human tasks on-chain with AI findings injected
+      if (humanTasks.length > 0) {
+        const nextId = await publicClient.readContract({
+          address: config.contractAddress,
+          abi: JOB_MARKETPLACE_ABI,
+          functionName: "nextTaskId",
+        }) as bigint;
+
+        let humanIndex = 0;
+        for (let i = 0; i < taskPlan.length; i++) {
+          const task = taskPlan[i];
+          if (task.executorType !== "human") continue;
+
+          // Enrich human task description with AI research findings
+          let enrichedDescription = task.description;
+          if (aiContext) {
+            enrichedDescription = `${task.description}\n\n--- AI Research Findings ---\n${aiContext}`;
+          }
+
+          const txHash = await addTaskOnChain(jobId, {
+            description: enrichedDescription,
+            proofRequirements: task.proofRequirements,
+            reward: parseEther(task.reward),
+            deadlineSeconds: BigInt(task.deadlineMinutes * 60),
+            maxRetries: 3n,
+          }, humanIndex);
+          costTracker.logCost({ type: "gas", amount_usd: 0.001, details: `addTask-${humanIndex}` });
+
+          const taskId = (nextId + BigInt(humanIndex)).toString();
+          if (task.tags && task.tags.length > 0) {
+            setTaskTags(taskId, task.tags, jobId.toString()).catch((err) =>
+              console.error(`Failed to store tags for task ${taskId}:`, err),
+            );
+          }
+
+          this.emit("action", { type: "task_posted", jobId: jobId.toString(),
+            description: task.description, reward: task.reward, timestamp: Date.now() });
+          this.emit("transaction", { action: "Add task", hash: txHash, timestamp: Date.now() });
+          humanIndex++;
+        }
+        this.jobTaskCounts.set(jobId, humanIndex);
+      } else {
+        // All tasks were AI-only — complete the job immediately
+        const completeTxHash = await completeJobOnChain(jobId);
+        costTracker.logCost({ type: "gas", amount_usd: 0.001, details: `completeJob-${jobId}` });
+        const profitUsd = await ethToUsd(budget);
+        costTracker.logRevenue({ type: "job_profit", amount_usd: profitUsd });
+        this.emit("action", { type: "job_completed", jobId: jobId.toString(),
+          profit: formatEther(budget), profitUsd, timestamp: Date.now() });
+        this.emit("transaction", { action: "Complete job (AI-only)",
+          hash: completeTxHash, amount: formatEther(budget), timestamp: Date.now() });
+      }
+
       this.emitMetrics();
     } catch (err) {
       console.error(`Error handling JobCreated ${jobId}:`, err);

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useParams, useLocation } from "react-router-dom";
 import { useAccount, useReadContract } from "wagmi";
 import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from "react-markdown";
 import {
   ArrowLeft,
   Clock,
@@ -226,18 +227,45 @@ export default function TaskDetailPage() {
             </span>
           </div>
 
-          <h1 className="text-xl font-semibold tracking-tight text-white">
-            {parsedTask.description}
-          </h1>
+          <div className="text-xl font-semibold tracking-tight text-white prose prose-invert prose-lg max-w-none">
+            <ReactMarkdown
+              components={{
+                p: ({ children }) => <p className="m-0">{children}</p>,
+                ul: ({ children }) => <ul className="my-2 ml-6 list-disc">{children}</ul>,
+                ol: ({ children }) => <ol className="my-2 ml-6 list-decimal">{children}</ol>,
+                li: ({ children }) => <li className="my-1">{children}</li>,
+                strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                em: ({ children }) => <em className="italic">{children}</em>,
+                code: ({ children }) => <code className="rounded bg-slate-800/50 px-1.5 py-0.5 text-sm font-mono text-purple-300">{children}</code>,
+                h1: ({ children }) => <h1 className="mt-3 mb-2 text-2xl font-bold">{children}</h1>,
+                h2: ({ children }) => <h2 className="mt-3 mb-2 text-xl font-semibold">{children}</h2>,
+                h3: ({ children }) => <h3 className="mt-2 mb-1 text-lg font-semibold">{children}</h3>,
+              }}
+            >
+              {parsedTask.description}
+            </ReactMarkdown>
+          </div>
 
           {parsedTask.proofRequirements && (
             <div className="mt-4">
               <h3 className="text-sm font-medium text-slate-400">
                 Proof requirements
               </h3>
-              <p className="mt-1.5 text-slate-300">
-                {parsedTask.proofRequirements}
-              </p>
+              <div className="mt-1.5 text-slate-300 prose prose-invert prose-sm max-w-none">
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <p className="m-0">{children}</p>,
+                    ul: ({ children }) => <ul className="my-1 ml-4 list-disc">{children}</ul>,
+                    ol: ({ children }) => <ol className="my-1 ml-4 list-decimal">{children}</ol>,
+                    li: ({ children }) => <li className="my-0.5">{children}</li>,
+                    strong: ({ children }) => <strong className="font-semibold text-slate-200">{children}</strong>,
+                    em: ({ children }) => <em className="italic">{children}</em>,
+                    code: ({ children }) => <code className="rounded bg-slate-800/50 px-1 py-0.5 text-xs font-mono text-purple-300">{children}</code>,
+                  }}
+                >
+                  {parsedTask.proofRequirements}
+                </ReactMarkdown>
+              </div>
             </div>
           )}
 

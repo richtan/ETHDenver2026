@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
-import { useAccount } from "wagmi";
-import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef } from 'react';
+import { useAccount } from 'wagmi';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
 import {
   Zap,
   CheckCircle2,
@@ -12,14 +13,15 @@ import {
   ListChecks,
   Coins,
   SkipForward,
-} from "lucide-react";
-import { useCreateJob } from "../hooks/useCreateJob";
-import { AGENT_API_URL } from "../config/wagmi";
+} from 'lucide-react';
+import { useCreateJob } from '../hooks/useCreateJob';
+import { AGENT_API_URL } from '../config/wagmi';
 
 interface TaskPreview {
   description: string;
   proofRequirements: string;
   reward: string;
+  executorType?: 'ai' | 'human';
 }
 
 interface QAPair {
@@ -58,14 +60,15 @@ function ClarificationView({
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setAnswers(currentQuestions.map(() => ""));
+    setAnswers(currentQuestions.map(() => ''));
   }, [currentQuestions]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation, currentQuestions, isLoading]);
 
-  const canSubmitAnswers = answers.length > 0 && answers.every((a) => a.trim().length > 0);
+  const canSubmitAnswers =
+    answers.length > 0 && answers.every((a) => a.trim().length > 0);
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
@@ -89,7 +92,9 @@ function ClarificationView({
               </div>
               <div className="rounded-lg bg-slate-800/60 px-4 py-2.5 text-sm text-slate-300">
                 {description}
-                <span className="ml-2 text-xs text-slate-500">({budget} ETH)</span>
+                <span className="ml-2 text-xs text-slate-500">
+                  ({budget} ETH)
+                </span>
               </div>
             </div>
 
@@ -128,7 +133,7 @@ function ClarificationView({
                     <div className="pl-10">
                       <input
                         type="text"
-                        value={answers[i] || ""}
+                        value={answers[i] || ''}
                         onChange={(e) => {
                           const next = [...answers];
                           next[i] = e.target.value;
@@ -137,7 +142,11 @@ function ClarificationView({
                         placeholder="Your answer…"
                         className="w-full rounded-lg border border-slate-700/60 bg-slate-800/40 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" && canSubmitAnswers && i === currentQuestions.length - 1) {
+                          if (
+                            e.key === 'Enter' &&
+                            canSubmitAnswers &&
+                            i === currentQuestions.length - 1
+                          ) {
                             onSubmitAnswers(answers);
                           }
                         }}
@@ -167,7 +176,8 @@ function ClarificationView({
                   <CheckCircle2 className="h-4 w-4" />
                 </div>
                 <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 text-sm text-emerald-300">
-                  I have all the details I need. Review the task breakdown and create your job when ready.
+                  I have all the details I need. Review the task breakdown and
+                  create your job when ready.
                 </div>
               </div>
             )}
@@ -201,7 +211,9 @@ function ClarificationView({
               <motion.button
                 onClick={() => onSubmitAnswers(answers)}
                 disabled={!canSubmitAnswers || isLoading}
-                whileHover={canSubmitAnswers && !isLoading ? { scale: 1.01 } : {}}
+                whileHover={
+                  canSubmitAnswers && !isLoading ? { scale: 1.01 } : {}
+                }
                 whileTap={canSubmitAnswers && !isLoading ? { scale: 0.99 } : {}}
                 className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/25 transition disabled:cursor-not-allowed disabled:opacity-50 hover:shadow-blue-500/40"
               >
@@ -228,7 +240,9 @@ function ClarificationView({
             <span className="text-sm font-medium text-slate-300">
               Task Preview
             </span>
-            {isLoading && <Loader2 className="h-3 w-3 animate-spin text-slate-500 ml-auto" />}
+            {isLoading && (
+              <Loader2 className="h-3 w-3 animate-spin text-slate-500 ml-auto" />
+            )}
           </div>
 
           <div className="px-5 py-4 space-y-3">
@@ -238,33 +252,77 @@ function ClarificationView({
               </p>
             ) : (
               <AnimatePresence mode="popLayout">
-                {taskPreview.map((task, i) => (
-                  <motion.div
-                    key={i}
-                    layout
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="rounded-lg border border-slate-700/50 bg-slate-800/30 p-3 space-y-1.5"
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600/20 text-[10px] font-bold text-blue-400">
-                        {i + 1}
-                      </span>
-                      <p className="text-sm text-slate-300 leading-snug">
-                        {task.description}
-                      </p>
-                    </div>
-                    <p className="pl-7 text-xs text-slate-500 leading-relaxed">
-                      {task.proofRequirements}
-                    </p>
-                    <div className="pl-7 flex items-center gap-1 text-xs text-amber-400">
-                      <Coins className="h-3 w-3" />
-                      {task.reward} ETH
-                    </div>
-                  </motion.div>
-                ))}
+                {taskPreview.map((task, i) => {
+                  const isAi = task.executorType === 'ai';
+                  return (
+                    <motion.div
+                      key={i}
+                      layout
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ delay: i * 0.05 }}
+                      className={`rounded-lg border p-3 space-y-1.5 ${
+                        isAi
+                          ? 'border-purple-500/30 bg-purple-500/5'
+                          : 'border-slate-700/50 bg-slate-800/30'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                          isAi
+                            ? 'bg-purple-600/20 text-purple-400'
+                            : 'bg-blue-600/20 text-blue-400'
+                        }`}>
+                          {isAi ? 'AI' : i + 1}
+                        </span>
+                        <div className="text-sm text-slate-300 leading-snug prose prose-invert prose-sm max-w-none">
+                          <ReactMarkdown
+                            components={{
+                              p: ({ children }) => <p className="m-0">{children}</p>,
+                              ul: ({ children }) => <ul className="my-1 ml-4 list-disc">{children}</ul>,
+                              ol: ({ children }) => <ol className="my-1 ml-4 list-decimal">{children}</ol>,
+                              li: ({ children }) => <li className="my-0.5">{children}</li>,
+                              strong: ({ children }) => <strong className="font-semibold text-slate-200">{children}</strong>,
+                              em: ({ children }) => <em className="italic">{children}</em>,
+                              code: ({ children }) => <code className="rounded bg-slate-800/50 px-1 py-0.5 text-[10px] font-mono text-purple-300">{children}</code>,
+                            }}
+                          >
+                            {task.description}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                      {isAi ? (
+                        <div className="pl-7 flex items-center gap-1 text-xs text-purple-400">
+                          <Zap className="h-3 w-3" />
+                          AI-executed (free)
+                        </div>
+                      ) : (
+                        <>
+                          <div className="pl-7 text-xs text-slate-500 leading-relaxed prose prose-invert prose-xs max-w-none">
+                            <ReactMarkdown
+                              components={{
+                                p: ({ children }) => <p className="m-0">{children}</p>,
+                                ul: ({ children }) => <ul className="my-1 ml-4 list-disc">{children}</ul>,
+                                ol: ({ children }) => <ol className="my-1 ml-4 list-decimal">{children}</ol>,
+                                li: ({ children }) => <li className="my-0.5">{children}</li>,
+                                strong: ({ children }) => <strong className="font-semibold text-slate-400">{children}</strong>,
+                                em: ({ children }) => <em className="italic">{children}</em>,
+                                code: ({ children }) => <code className="rounded bg-slate-800/50 px-1 py-0.5 text-[10px] font-mono text-purple-300">{children}</code>,
+                              }}
+                            >
+                              {task.proofRequirements}
+                            </ReactMarkdown>
+                          </div>
+                          <div className="pl-7 flex items-center gap-1 text-xs text-amber-400">
+                            <Coins className="h-3 w-3" />
+                            {task.reward} ETH
+                          </div>
+                        </>
+                      )}
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             )}
           </div>
@@ -281,35 +339,37 @@ export default function ClientPortal() {
   const { createJob, isPending, isConfirming, isSuccess } = useCreateJob();
   const navigate = useNavigate();
 
-  const [description, setDescription] = useState("");
-  const [budget, setBudget] = useState("");
+  const [description, setDescription] = useState('');
+  const [budget, setBudget] = useState('');
 
   // Clarification state
-  const [phase, setPhase] = useState<"form" | "clarifying" | "submitting">("form");
+  const [phase, setPhase] = useState<'form' | 'clarifying' | 'submitting'>(
+    'form',
+  );
   const [conversation, setConversation] = useState<QAPair[]>([]);
   const [currentQuestions, setCurrentQuestions] = useState<string[]>([]);
   const [taskPreview, setTaskPreview] = useState<TaskPreview[]>([]);
-  const [enrichedDescription, setEnrichedDescription] = useState<string | null>(null);
+  const [enrichedDescription, setEnrichedDescription] = useState<string | null>(
+    null,
+  );
   const [clarifyLoading, setClarifyLoading] = useState(false);
   const [clarifyError, setClarifyError] = useState<string | null>(null);
 
   const budgetNum = parseFloat(budget);
   const canStartClarify =
-    description.length >= 10 &&
-    !isNaN(budgetNum) &&
-    budgetNum >= 0.001;
+    description.length >= 10 && !isNaN(budgetNum) && budgetNum >= 0.001;
   const isCreating = isPending || isConfirming;
 
   useEffect(() => {
     if (isSuccess) {
-      setDescription("");
-      setBudget("");
-      setPhase("form");
+      setDescription('');
+      setBudget('');
+      setPhase('form');
       setConversation([]);
       setCurrentQuestions([]);
       setTaskPreview([]);
       setEnrichedDescription(null);
-      navigate("/jobs");
+      navigate('/jobs');
     }
   }, [isSuccess, navigate]);
 
@@ -318,11 +378,11 @@ export default function ClientPortal() {
     setClarifyError(null);
     try {
       const res = await fetch(`${AGENT_API_URL}/api/clarify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description, budget, conversation: convo }),
       });
-      if (!res.ok) throw new Error("Clarification request failed");
+      if (!res.ok) throw new Error('Clarification request failed');
       const data = await res.json();
       if (data.taskPreview) setTaskPreview(data.taskPreview);
       if (data.ready) {
@@ -331,8 +391,10 @@ export default function ClientPortal() {
       } else {
         setCurrentQuestions(data.questions || []);
       }
-    } catch (err: any) {
-      setClarifyError(err.message);
+    } catch (err: unknown) {
+      setClarifyError(
+        err instanceof Error ? err.message : 'An unknown error occurred',
+      );
     } finally {
       setClarifyLoading(false);
     }
@@ -341,7 +403,7 @@ export default function ClientPortal() {
   function handleStartClarify(e: React.FormEvent) {
     e.preventDefault();
     if (!canStartClarify) return;
-    setPhase("clarifying");
+    setPhase('clarifying');
     setConversation([]);
     setCurrentQuestions([]);
     setTaskPreview([]);
@@ -350,7 +412,10 @@ export default function ClientPortal() {
   }
 
   function handleSubmitAnswers(answers: string[]) {
-    const newPairs = currentQuestions.map((q, i) => ({ question: q, answer: answers[i] }));
+    const newPairs = currentQuestions.map((q, i) => ({
+      question: q,
+      answer: answers[i],
+    }));
     const newConvo = [...conversation, ...newPairs];
     setConversation(newConvo);
     setCurrentQuestions([]);
@@ -367,7 +432,7 @@ export default function ClientPortal() {
   }
 
   function handleBack() {
-    setPhase("form");
+    setPhase('form');
     setConversation([]);
     setCurrentQuestions([]);
     setTaskPreview([]);
@@ -376,7 +441,11 @@ export default function ClientPortal() {
   }
 
   return (
-    <div className={phase === "clarifying" ? "mx-auto max-w-5xl" : "mx-auto max-w-3xl"}>
+    <div
+      className={
+        phase === 'clarifying' ? 'mx-auto max-w-5xl' : 'mx-auto max-w-3xl'
+      }
+    >
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -393,8 +462,8 @@ export default function ClientPortal() {
           Hire an AI Agent to Get Things Done
         </h1>
         <p className="mt-3 text-lg text-slate-400">
-          Submit your job with a budget. An AI agent will break it into tasks and
-          coordinate workers on Base.
+          Submit your job with a budget. An AI agent will break it into tasks
+          and coordinate workers on Base.
         </p>
       </motion.section>
 
@@ -410,7 +479,7 @@ export default function ClientPortal() {
         </motion.div>
       ) : (
         <>
-          {phase === "form" && (
+          {phase === 'form' && (
             <motion.form
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -475,7 +544,7 @@ export default function ClientPortal() {
             </motion.form>
           )}
 
-          {phase === "clarifying" && (
+          {phase === 'clarifying' && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -514,7 +583,6 @@ export default function ClientPortal() {
               />
             </motion.div>
           )}
-
         </>
       )}
     </div>
