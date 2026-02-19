@@ -118,7 +118,7 @@ contract JobMarketplace is Ownable, ReentrancyGuard, Pausable {
         require(job.status == JobStatus.Created || job.status == JobStatus.InProgress, "Job not active");
         require(job.totalCommitted + reward <= job.totalBudget, "Exceeds budget");
 
-        taskId = nextTaskId++;
+        taskId = ++nextTaskId;
         uint256 seqIndex = jobTaskIds[jobId].length;
 
         uint256 actualDeadline = seqIndex == 0
@@ -360,12 +360,12 @@ contract JobMarketplace is Ownable, ReentrancyGuard, Pausable {
 
     function getOpenTasks() external view returns (Task[] memory) {
         uint256 count = 0;
-        for (uint256 i = 0; i < nextTaskId; i++) {
+        for (uint256 i = 1; i <= nextTaskId; i++) {
             if (tasks[i].status == TaskStatus.Open) count++;
         }
         Task[] memory result = new Task[](count);
         uint256 idx = 0;
-        for (uint256 i = 0; i < nextTaskId; i++) {
+        for (uint256 i = 1; i <= nextTaskId; i++) {
             if (tasks[i].status == TaskStatus.Open) result[idx++] = tasks[i];
         }
         return result;
