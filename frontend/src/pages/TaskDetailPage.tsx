@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useLocation } from "react-router-dom";
 import { useAccount, useReadContract } from "wagmi";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Clock,
@@ -12,6 +12,7 @@ import {
   Image,
   Loader2,
   ExternalLink,
+  Plus,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { CONTRACT_ADDRESS } from "../config/wagmi";
@@ -50,10 +51,14 @@ const cardVariants = {
 export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const { address } = useAccount();
+  const location = useLocation();
+  const from = (location.state as { from?: string } | null)?.from;
+  const backTo = from === "/jobs" ? "/jobs" : from === "/my-tasks" ? "/my-tasks" : "/work";
+  const backLabel = from === "/jobs" ? "Back to My Jobs" : from === "/my-tasks" ? "Back to My Work" : "Back to Marketplace";
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [proofSubmitted, setProofSubmitted] = useState(false);
 
   const { data: task, isLoading: taskLoading } = useReadContract({
@@ -76,7 +81,7 @@ export default function TaskDetailPage() {
 
   const { acceptTask, isPending: accepting, isConfirming: confirmingAccept, isSuccess: acceptSuccess } = useAcceptTask();
   const { submitProof, isPending: submitting, isConfirming: confirmingSubmit, isSuccess: submitSuccess } = useSubmitProof();
-  const { upload, uploading, ipfsUri, error: uploadError } = useUploadProof();
+  const { upload, uploading, ipfsUri, error: uploadError, progress } = useUploadProof();
 
   useEffect(() => {
     if (submitSuccess) setProofSubmitted(true);
@@ -108,18 +113,23 @@ export default function TaskDetailPage() {
   const showProofVerifying =
     (parsedTask?.status === 2 && proofSubmitted) || false;
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith("image/")) {
-      setSelectedFile(file);
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(URL.createObjectURL(file));
-    }
+  function handleFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith("image/"));
+    if (files.length === 0) return;
+    setSelectedFiles((prev) => [...prev, ...files]);
+    setPreviewUrls((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removeFile(index: number) {
+    URL.revokeObjectURL(previewUrls[index]);
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleUpload() {
-    if (!selectedFile) return;
-    await upload(selectedFile);
+    if (selectedFiles.length === 0) return;
+    await upload(selectedFiles);
   }
 
   function handleSubmitProof() {
@@ -128,9 +138,9 @@ export default function TaskDetailPage() {
   }
 
   function clearSelection() {
-    setSelectedFile(null);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null);
+    previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    setSelectedFiles([]);
+    setPreviewUrls([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -138,11 +148,11 @@ export default function TaskDetailPage() {
     return (
       <div className="mx-auto max-w-2xl">
         <Link
-          to="/work"
+          to={backTo}
           className="inline-flex items-center gap-2 text-slate-400 transition hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Tasks
+          {backLabel}
         </Link>
         <p className="mt-8 text-slate-500">Invalid task ID.</p>
       </div>
@@ -153,11 +163,11 @@ export default function TaskDetailPage() {
     return (
       <div className="mx-auto max-w-2xl">
         <Link
-          to="/work"
+          to={backTo}
           className="inline-flex items-center gap-2 text-slate-400 transition hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Tasks
+          {backLabel}
         </Link>
         <div className="mt-12 flex items-center justify-center gap-2 py-20 text-slate-500">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -182,11 +192,11 @@ export default function TaskDetailPage() {
         transition={{ duration: 0.3 }}
       >
         <Link
-          to="/work"
+          to={backTo}
           className="inline-flex items-center gap-2 text-slate-400 transition hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Tasks
+          {backLabel}
         </Link>
       </motion.div>
 
@@ -330,7 +340,7 @@ export default function TaskDetailPage() {
               Submit proof
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              Upload an image as proof of task completion.
+              Upload one or more images as proof of task completion.
             </p>
 
             <div className="mt-4">
@@ -338,35 +348,61 @@ export default function TaskDetailPage() {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
-                onChange={handleFileChange}
+                multiple
+                onChange={handleFilesChange}
                 className="hidden"
               />
 
-              {!selectedFile ? (
+              {selectedFiles.length === 0 ? (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-700/60 bg-slate-800/30 py-8 text-slate-400 transition hover:border-slate-600 hover:bg-slate-800/50 hover:text-slate-300"
                 >
                   <Image className="h-10 w-10" />
-                  <span className="text-sm font-medium">Choose image or take photo</span>
+                  <span className="text-sm font-medium">Choose images or take photo</span>
                 </button>
               ) : (
                 <div className="space-y-3">
-                  <div className="relative overflow-hidden rounded-lg border border-slate-700/60 bg-slate-800/30">
-                    <img
-                      src={previewUrl ?? undefined}
-                      alt="Proof preview"
-                      className="h-48 w-full object-contain"
-                    />
-                    <button
-                      type="button"
-                      onClick={clearSelection}
-                      className="absolute right-2 top-2 rounded-full bg-slate-900/80 p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </button>
+                  {/* Thumbnail grid */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <AnimatePresence mode="popLayout">
+                      {previewUrls.map((url, i) => (
+                        <motion.div
+                          key={url}
+                          layout
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          className="relative overflow-hidden rounded-lg border border-slate-700/60 bg-slate-800/30"
+                        >
+                          <img
+                            src={url}
+                            alt={`Proof ${i + 1}`}
+                            className="h-28 w-full object-cover"
+                          />
+                          {!ipfsUri && (
+                            <button
+                              type="button"
+                              onClick={() => removeFile(i)}
+                              className="absolute right-1 top-1 rounded-full bg-slate-900/80 p-1 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                    {!ipfsUri && (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex h-28 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-700/60 bg-slate-800/20 text-slate-500 transition hover:border-slate-600 hover:text-slate-300"
+                      >
+                        <Plus className="h-5 w-5" />
+                        <span className="text-xs">Add more</span>
+                      </button>
+                    )}
                   </div>
 
                   {uploadError && (
@@ -387,12 +423,12 @@ export default function TaskDetailPage() {
                           {uploading ? (
                             <>
                               <Loader2 className="h-4 w-4 animate-spin" />
-                              Uploading…
+                              Uploading {progress.done}/{progress.total}…
                             </>
                           ) : (
                             <>
                               <Upload className="h-4 w-4" />
-                              Upload to IPFS
+                              Upload {selectedFiles.length} {selectedFiles.length === 1 ? "image" : "images"} to IPFS
                             </>
                           )}
                         </button>
@@ -401,7 +437,7 @@ export default function TaskDetailPage() {
                           onClick={clearSelection}
                           className="rounded-lg border border-slate-600/60 px-4 py-2.5 text-sm text-slate-400 transition hover:text-white"
                         >
-                          Change image
+                          Clear all
                         </button>
                       </>
                     ) : (

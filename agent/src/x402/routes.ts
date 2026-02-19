@@ -5,6 +5,7 @@ import { costTracker } from "../cost-tracker.js";
 import { type JobOrchestrator } from "../orchestrator.js";
 import { config, NETWORK } from "../config.js";
 import { type AgentWallet } from "../wallet.js";
+import { clarifyJob } from "../clarifier.js";
 
 const openai = new OpenAI();
 
@@ -35,6 +36,20 @@ export function registerRoutes(app: Express, orchestrator: JobOrchestrator) {
       }
     });
   }
+
+  app.post("/api/clarify", async (req, res) => {
+    try {
+      const { description, budget, conversation } = req.body;
+      if (!description || !budget) {
+        res.status(400).json({ error: "description and budget are required" });
+        return;
+      }
+      const result = await clarifyJob(description, budget, conversation || []);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   app.get("/api/metrics", (_req, res) => {
     res.json(costTracker.getMetricsSnapshot());

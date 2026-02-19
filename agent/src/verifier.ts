@@ -1,19 +1,28 @@
 import OpenAI from "openai";
-import { ipfsToHttpGateway } from "./ipfs.js";
+import { ipfsToHttpGateway, fetchIpfsJson } from "./ipfs.js";
 import { readPreviousDeliverable } from "./contract-reads.js";
 import { type VerifyResult, type VerificationScores } from "./types.js";
 
 const openai = new OpenAI();
 
-const FRAUD_PROMPT = `You are an image forensics expert. Analyze this image for signs of fraud or gaming.
+function buildFraudPrompt(task: { description: string; proofRequirements: string }) {
+  return `You are an image forensics expert. Analyze the submitted image(s) for signs of fraud or gaming. The worker may have submitted multiple images as proof — evaluate ALL of them together.
 
-Check for ALL of the following:
-1. AI-GENERATED CONTENT: Look for DALL-E/Midjourney/SD artifacts -- unnatural smoothness, warped text, impossible geometry, six fingers, inconsistent lighting/shadows, repeating patterns.
-2. STOCK PHOTOS: Watermarks (even faint), overly polished studio lighting, generic staged compositions, visible stock agency metadata.
-3. SCREENSHOTS OF OTHER WORK: Browser chrome visible, cursor artifacts, screen recording indicators, someone else's portfolio/Behance/Dribbble visible.
+IMPORTANT CONTEXT — The worker was hired to do the following task:
+**Task:** ${task.description}
+**Required proof:** ${task.proofRequirements}
+
+If the task itself requires screenshots, stock images, browser content, or similar elements,
+do NOT flag those as fraud. Only flag things that are suspicious GIVEN what the task asked for.
+For example, if the task says "take a screenshot of a website", browser chrome is expected, not fraud.
+
+Check for the following (only flag items that are genuinely suspicious given the task context):
+1. AI-GENERATED CONTENT: DALL-E/Midjourney/SD artifacts -- unnatural smoothness, warped text, impossible geometry, six fingers, inconsistent lighting/shadows, repeating patterns.
+2. STOCK PHOTOS: Watermarks, overly polished studio lighting, generic staged compositions -- BUT only if the task did NOT ask the worker to find/use stock images.
+3. SCREENSHOTS OF OTHER WORK: Browser chrome, cursor artifacts, screen recording indicators -- BUT only if the task did NOT ask for screenshots or browser-based proof.
 4. RECYCLED/IRRELEVANT IMAGES: Image clearly predates the task, shows content unrelated to the described work, is a meme or random photo.
 5. MANIPULATED IMAGES: Obvious Photoshop artifacts, cloned regions, inconsistent resolution between foreground/background, JPEG artifacts around edited areas.
-6. SUSPICIOUS METADATA INDICATORS: Image is suspiciously low resolution (<400px), is a tiny thumbnail, or appears to be a photo of a screen.
+6. SUSPICIOUS METADATA INDICATORS: Image is suspiciously low resolution (<400px), is a tiny thumbnail, or appears to be a photo of a screen (unless a screenshot was requested).
 
 Respond as JSON:
 {
@@ -21,9 +30,10 @@ Respond as JSON:
   "fraud_flags": ["list of specific concerns, empty if none"],
   "reasoning": "detailed analysis of what you observed"
 }`;
+}
 
 function buildRequirementsPrompt(task: { description: string; proofRequirements: string }) {
-  return `You are a strict quality inspector. A worker was hired to complete a task and submitted this image as proof.
+  return `You are a strict quality inspector. A worker was hired to complete a task and submitted image(s) as proof. The worker may have submitted multiple images — evaluate ALL of them together as a combined proof submission.
 
 **Task they were hired for:** ${task.description}
 **Proof requirements they must meet:** ${task.proofRequirements}
@@ -85,9 +95,9 @@ export async function verifyProof(task: any, proofURI: string): Promise<VerifyRe
     };
   }
 
-  const imageUrl = ipfsToHttpGateway(proofURI);
+  const proofHttpUrl = ipfsToHttpGateway(proofURI);
 
-  if (!imageUrl || imageUrl.includes("undefined") || !imageUrl.startsWith("http")) {
+  if (!proofHttpUrl || proofHttpUrl.includes("undefined") || !proofHttpUrl.startsWith("http")) {
     return {
       approved: false,
       confidence: 0,
@@ -97,18 +107,34 @@ export async function verifyProof(task: any, proofURI: string): Promise<VerifyRe
     };
   }
 
+  // Resolve image URLs — could be a single image or a JSON manifest with multiple images
+  let imageUrls: string[];
+  try {
+    const maybeManifest = await fetchIpfsJson(proofURI) as any;
+    if (maybeManifest && Array.isArray(maybeManifest.images) && maybeManifest.images.length > 0) {
+      imageUrls = maybeManifest.images.map((uri: string) => ipfsToHttpGateway(uri));
+      console.log(`Manifest detected: ${imageUrls.length} images`);
+    } else {
+      // Parsed as JSON but no images array — treat as single image
+      imageUrls = [proofHttpUrl];
+    }
+  } catch {
+    // Not JSON — treat as a direct image URL
+    imageUrls = [proofHttpUrl];
+  }
+
   const prevDeliverableUri = await readPreviousDeliverable(task.jobId, task.id);
   const prevDeliverableUrl = prevDeliverableUri ? ipfsToHttpGateway(prevDeliverableUri) : null;
 
   const [fraudResult, requirementsResult] = await Promise.all([
-    runFraudDetection(imageUrl),
-    runRequirementsCheck(imageUrl, task),
+    runFraudDetection(imageUrls, task),
+    runRequirementsCheck(imageUrls, task),
   ]);
 
   let consistencyScore = 1.0;
   let crossVerifyResult: any = null;
   if (prevDeliverableUrl) {
-    crossVerifyResult = await runCrossVerification(imageUrl, prevDeliverableUrl, task);
+    crossVerifyResult = await runCrossVerification(imageUrls, prevDeliverableUrl, task);
     consistencyScore = crossVerifyResult.consistency_score;
   }
 
@@ -129,7 +155,7 @@ export async function verifyProof(task: any, proofURI: string): Promise<VerifyRe
 
   const allAboveFloor = Object.values(scores).every(s => s >= 0.6);
   const fraudKillSwitch = scores.authenticity < 0.5;
-  const approved = !fraudKillSwitch && allAboveFloor && confidence >= 0.80;
+  const approved = !fraudKillSwitch && allAboveFloor && confidence >= 0.75;
 
   let suggestion = "";
   if (!approved) {
@@ -139,7 +165,7 @@ export async function verifyProof(task: any, proofURI: string): Promise<VerifyRe
     if (scores.completeness < 0.6) issues.push(`Missing requirements: ${requirementsResult.completeness_evidence}`);
     if (scores.quality < 0.6) issues.push(`Quality too low: ${requirementsResult.quality_evidence}`);
     if (scores.consistency < 0.6) issues.push(`Doesn't match previous deliverable: ${crossVerifyResult?.mismatches?.join(", ")}`);
-    if (confidence < 0.80 && issues.length === 0) issues.push(`Overall confidence too low (${(confidence * 100).toFixed(0)}%). Please submit clearer proof.`);
+    if (confidence < 0.75 && issues.length === 0) issues.push(`Overall confidence too low (${(confidence * 100).toFixed(0)}%). Please submit clearer proof.`);
     suggestion = issues.join(" | ");
   }
 
@@ -156,14 +182,15 @@ export async function verifyProof(task: any, proofURI: string): Promise<VerifyRe
   };
 }
 
-async function runFraudDetection(imageUrl: string) {
+async function runFraudDetection(imageUrls: string[], task: { description: string; proofRequirements: string }) {
   try {
+    const content: any[] = [{ type: "text", text: buildFraudPrompt(task) }];
+    for (const url of imageUrls) {
+      content.push({ type: "image_url", image_url: { url } });
+    }
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [{ role: "user", content: [
-        { type: "text", text: FRAUD_PROMPT },
-        { type: "image_url", image_url: { url: imageUrl } },
-      ]}],
+      messages: [{ role: "user", content }],
       response_format: { type: "json_object" },
     });
     return JSON.parse(response.choices[0].message.content!);
@@ -173,14 +200,15 @@ async function runFraudDetection(imageUrl: string) {
   }
 }
 
-async function runRequirementsCheck(imageUrl: string, task: any) {
+async function runRequirementsCheck(imageUrls: string[], task: any) {
   try {
+    const content: any[] = [{ type: "text", text: buildRequirementsPrompt(task) }];
+    for (const url of imageUrls) {
+      content.push({ type: "image_url", image_url: { url } });
+    }
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [{ role: "user", content: [
-        { type: "text", text: buildRequirementsPrompt(task) },
-        { type: "image_url", image_url: { url: imageUrl } },
-      ]}],
+      messages: [{ role: "user", content }],
       response_format: { type: "json_object" },
     });
     return JSON.parse(response.choices[0].message.content!);
@@ -192,15 +220,18 @@ async function runRequirementsCheck(imageUrl: string, task: any) {
   }
 }
 
-async function runCrossVerification(currentImageUrl: string, previousImageUrl: string, task: any) {
+async function runCrossVerification(currentImageUrls: string[], previousImageUrl: string, task: any) {
   try {
+    const content: any[] = [
+      { type: "text", text: buildCrossVerifyPrompt(task, previousImageUrl) },
+      { type: "image_url", image_url: { url: previousImageUrl } },
+    ];
+    for (const url of currentImageUrls) {
+      content.push({ type: "image_url", image_url: { url } });
+    }
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [{ role: "user", content: [
-        { type: "text", text: buildCrossVerifyPrompt(task, previousImageUrl) },
-        { type: "image_url", image_url: { url: previousImageUrl } },
-        { type: "image_url", image_url: { url: currentImageUrl } },
-      ]}],
+      messages: [{ role: "user", content }],
       response_format: { type: "json_object" },
     });
     return JSON.parse(response.choices[0].message.content!);

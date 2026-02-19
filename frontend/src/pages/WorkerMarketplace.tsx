@@ -14,6 +14,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { useOpenTasks } from '../hooks/useOpenTasks';
 import { useAcceptTask } from '../hooks/useAcceptTask';
+import { useClientJobs } from '../hooks/useClientJobs';
 import { useJob } from '../hooks/useJob';
 import { formatEth } from '../lib/formatEth';
 
@@ -140,6 +141,7 @@ function TaskCard({
       <div className="mt-5 flex flex-1 items-end gap-2">
         <Link
           to={`/work/${id.toString()}`}
+          state={{ from: "/work" }}
           className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-600/60 bg-slate-800/50 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500/80 hover:bg-slate-800/80 hover:text-white"
         >
           View Details
@@ -172,6 +174,7 @@ export default function WorkerMarketplace() {
   const { isConnected } = useAccount();
   const navigate = useNavigate();
   const { data: tasks, isLoading: tasksLoading } = useOpenTasks();
+  const { jobIds: myJobIds } = useClientJobs();
   const { acceptTask, isPending, isConfirming, isSuccess, error } =
     useAcceptTask();
 
@@ -184,16 +187,19 @@ export default function WorkerMarketplace() {
     setHiddenTaskIds((prev) => new Set(prev).add(acceptingTaskId));
     setSuccessBanner(`Task #${acceptingTaskId.toString()} accepted!`);
     const navTimer = setTimeout(() => {
-      navigate(`/work/${acceptingTaskId.toString()}`);
+      navigate(`/work/${acceptingTaskId.toString()}`, { state: { from: "/work" } });
     }, 1500);
     return () => clearTimeout(navTimer);
   }, [isSuccess, acceptingTaskId, navigate]);
+
+  const myJobIdSet = new Set(myJobIds?.map((id) => id.toString()) ?? []);
 
   const taskList: TaskStruct[] = Array.isArray(tasks)
     ? tasks.filter(
         (t): t is TaskStruct =>
           t != null && typeof t === 'object' && 'id' in t && 'jobId' in t &&
-          !hiddenTaskIds.has(t.id)
+          !hiddenTaskIds.has(t.id) &&
+          !myJobIdSet.has(t.jobId.toString())
       )
     : [];
   const canAccept = isConnected && !isPending && !isConfirming;

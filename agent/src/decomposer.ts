@@ -26,6 +26,19 @@ Rules:
   worker creates a photo collage/grid of all locations and uploads as one image
 - Each task has exactly ONE proof image
 
+Precision rules (STRICT):
+- Task descriptions must be specific and measurable. BAD: "Design a flyer".
+  GOOD: "Design an A4 portrait flyer (2480x3508px) with the headline 'Summer Sale 2025',
+  the company logo in the top-left corner, and at least 3 product images."
+- proofRequirements must list exact, checkable acceptance criteria that a reviewer can
+  verify against the submitted image. BAD: "Screenshot of the design".
+  GOOD: "Screenshot of final design showing: (1) A4 dimensions, (2) headline text visible,
+  (3) logo placed in top-left, (4) at least 3 product images included."
+- NEVER use vague words like "appropriate", "suitable", "nice", "good quality",
+  "professional-looking", or "as needed" in descriptions or requirements.
+  Replace with specific, checkable criteria.
+- Every requirement must be binary-verifiable: a reviewer can answer yes/no for each one.
+
 Return JSON object with shape: { "tasks": [...], "totalWorkerCost": "0.007", "agentProfit": "0.003" }`;
 
 export async function decomposeJob(description: string, budget: bigint): Promise<TaskPlan[]> {

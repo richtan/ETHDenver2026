@@ -2,7 +2,7 @@ import { Outlet, NavLink } from "react-router-dom";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import { useState } from "react";
-import { Bot, Briefcase, Hammer, LayoutDashboard, User, Droplets } from "lucide-react";
+import { Bot, Briefcase, Hammer, LayoutDashboard, User, Droplets, Plus } from "lucide-react";
 import { AGENT_API_URL } from "../../config/wagmi";
 
 const IS_LOCAL = import.meta.env.VITE_CHAIN === "localhost";
@@ -63,16 +63,20 @@ export default function Layout() {
             </NavLink>
             <nav className="hidden md:flex items-center gap-1">
               <NavLink to="/" className={linkClass} end>
+                <Plus className="h-4 w-4" />
+                Post Job
+              </NavLink>
+              <NavLink to="/jobs" className={linkClass}>
                 <Briefcase className="h-4 w-4" />
-                Hire Agent
+                My Jobs
               </NavLink>
               <NavLink to="/work" className={linkClass}>
                 <Hammer className="h-4 w-4" />
-                Work
+                Marketplace
               </NavLink>
               <NavLink to="/my-tasks" className={linkClass}>
                 <User className="h-4 w-4" />
-                My Tasks
+                My Work
               </NavLink>
               <NavLink to="/dashboard" className={linkClass}>
                 <LayoutDashboard className="h-4 w-4" />

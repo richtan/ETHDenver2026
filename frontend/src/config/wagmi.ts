@@ -1,6 +1,5 @@
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import {
-  injectedWallet,
   metaMaskWallet,
   coinbaseWallet,
   walletConnectWallet,
@@ -29,8 +28,8 @@ const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || "";
 const hasWalletConnect = projectId && projectId !== "placeholder-for-dev";
 
 const wallets = hasWalletConnect
-  ? [injectedWallet, metaMaskWallet, coinbaseWallet, walletConnectWallet]
-  : [injectedWallet, metaMaskWallet, coinbaseWallet];
+  ? [metaMaskWallet, coinbaseWallet, walletConnectWallet]
+  : [metaMaskWallet, coinbaseWallet];
 
 const connectors = connectorsForWallets(
   [{ groupName: "Connect", wallets }],

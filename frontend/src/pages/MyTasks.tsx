@@ -118,6 +118,7 @@ function TaskRow({ taskId }: { taskId: bigint }) {
 
       <Link
         to={`/work/${parsedTask.id.toString()}`}
+        state={{ from: "/my-tasks" }}
         className="mt-5 inline-flex w-fit items-center gap-2 rounded-lg border border-slate-600/60 bg-slate-800/50 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500/80 hover:bg-slate-800/80 hover:text-white group/link"
       >
         View details
@@ -156,12 +157,12 @@ export default function MyTasks() {
         <div className="mb-3 flex items-center gap-2 text-amber-400/90">
           <User className="h-6 w-6" />
           <span className="text-sm font-medium uppercase tracking-widest">
-            My Tasks
+            Worker
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            My Tasks
+            My Work
           </h1>
           {isConnected && !isLoading && (
             <span className="rounded-full border border-slate-700/60 bg-slate-800/50 px-3 py-1 text-sm font-medium text-slate-300">
@@ -170,7 +171,7 @@ export default function MyTasks() {
           )}
         </div>
         <p className="mt-3 text-lg text-slate-400">
-          View your accepted and completed tasks on the TaskMaster marketplace.
+          View your accepted and completed work on the TaskMaster marketplace.
         </p>
       </motion.section>
 
@@ -205,14 +206,14 @@ export default function MyTasks() {
             No tasks yet
           </p>
           <p className="mt-2 text-sm text-slate-500">
-            Accept tasks from the Work marketplace to see them here.
+            Accept tasks from the marketplace to see them here.
           </p>
           <Link
             to="/work"
             className="mt-6 inline-flex items-center gap-2 rounded-lg border border-slate-600/60 bg-slate-800/50 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500/80 hover:bg-slate-800/80 hover:text-white"
           >
             <ExternalLink className="h-4 w-4" />
-            Browse available tasks
+            Browse marketplace
           </Link>
         </motion.div>
       ) : (
