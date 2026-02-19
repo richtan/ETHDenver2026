@@ -75,6 +75,16 @@ Respond as JSON:
 }
 
 export async function verifyProof(task: any, proofURI: string): Promise<VerifyResult> {
+  if (process.env.MOCK_OPENAI === "true") {
+    return {
+      approved: true,
+      confidence: 0.92,
+      scores: { authenticity: 0.95, relevance: 0.90, completeness: 0.88, quality: 0.85, consistency: 1.0 },
+      reasoning: "Mock verification — auto-approved",
+      suggestion: "",
+    };
+  }
+
   const imageUrl = ipfsToHttpGateway(proofURI);
   const prevDeliverableUri = await readPreviousDeliverable(task.jobId, task.id);
   const prevDeliverableUrl = prevDeliverableUri ? ipfsToHttpGateway(prevDeliverableUri) : null;

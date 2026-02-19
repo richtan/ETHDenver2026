@@ -43,12 +43,19 @@ echo "Installing dependencies..."
 
 # ── Anvil ─────────────────────────────────────────────────────
 echo "Starting Anvil..."
+EXISTING_PID=$(lsof -ti :8545 2>/dev/null || true)
+if [ -n "$EXISTING_PID" ]; then
+  echo "Port 8545 in use (pid $EXISTING_PID), killing..."
+  kill $EXISTING_PID 2>/dev/null || true
+  sleep 1
+fi
+
 anvil --chain-id 31337 --silent &
 ANVIL_PID=$!
 sleep 2
 
 if ! kill -0 "$ANVIL_PID" 2>/dev/null; then
-  echo "ERROR: Anvil failed to start. Is port 8545 already in use?"
+  echo "ERROR: Anvil failed to start."
   exit 1
 fi
 echo "Anvil running (pid $ANVIL_PID)"

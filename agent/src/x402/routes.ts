@@ -1,11 +1,41 @@
 import { type Express } from "express";
 import OpenAI from "openai";
+import { parseEther, isAddress } from "viem";
 import { costTracker } from "../cost-tracker.js";
 import { type JobOrchestrator } from "../orchestrator.js";
+import { config, NETWORK } from "../config.js";
+import { type AgentWallet } from "../wallet.js";
 
 const openai = new OpenAI();
 
+let walletRef: AgentWallet | null = null;
+export function setRouteWallet(w: AgentWallet) { walletRef = w; }
+
 export function registerRoutes(app: Express, orchestrator: JobOrchestrator) {
+  if (NETWORK === "localhost") {
+    app.post("/api/faucet", async (req, res) => {
+      try {
+        const { address } = req.body;
+        if (!address || !isAddress(address)) {
+          res.status(400).json({ error: "Invalid address" });
+          return;
+        }
+        if (!walletRef) {
+          res.status(503).json({ error: "Agent wallet not ready" });
+          return;
+        }
+        const hash = await walletRef.sendTransaction({
+          to: address as `0x${string}`,
+          value: parseEther("10"),
+          data: "0x",
+        });
+        res.json({ hash, amount: "10 ETH" });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+  }
+
   app.get("/api/metrics", (_req, res) => {
     res.json(costTracker.getMetricsSnapshot());
   });

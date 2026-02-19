@@ -29,6 +29,26 @@ Rules:
 Return JSON object with shape: { "tasks": [...], "totalWorkerCost": "0.007", "agentProfit": "0.003" }`;
 
 export async function decomposeJob(description: string, budget: bigint): Promise<TaskPlan[]> {
+  if (process.env.MOCK_OPENAI === "true") {
+    const rewardEach = formatEther(budget * 35n / 100n);
+    return [
+      {
+        description: "Design a promotional flyer with product name, tagline, and key features",
+        proofRequirements: "Screenshot of final design as PNG/JPG",
+        reward: rewardEach,
+        deadlineMinutes: 120,
+        dependsOnPrevious: false,
+      },
+      {
+        description: "Print and distribute flyers at the specified locations",
+        proofRequirements: "Photo collage showing flyers posted at multiple locations",
+        reward: rewardEach,
+        deadlineMinutes: 180,
+        dependsOnPrevious: true,
+      },
+    ];
+  }
+
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [

@@ -16,10 +16,6 @@ import { useJob } from "../hooks/useJob";
 import { formatEth } from "../lib/formatEth";
 
 const JOB_STATUS = ["Created", "InProgress", "Completed", "Cancelled"] as const;
-function truncate(text: string, maxLen = 80): string {
-  if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen).trim() + "…";
-}
 
 function JobCard({ jobId }: { jobId: bigint }) {
   const { job, tasks, isLoading } = useJob(jobId);
@@ -103,7 +99,7 @@ function JobCard({ jobId }: { jobId: bigint }) {
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
-          <p className="text-slate-300 line-clamp-2">{truncate(jobData.description)}</p>
+          <p className="text-slate-300">{jobData.description}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-blue-400">
               {formatEth(jobData.totalBudget)} ETH
@@ -147,7 +143,7 @@ function JobCard({ jobId }: { jobId: bigint }) {
                   <div className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800/80">
                     {getTaskIcon(st)}
                   </div>
-                  <p className="text-sm text-slate-400">{truncate(desc, 50)}</p>
+                  <p className="text-sm text-slate-400">{desc}</p>
                 </motion.div>
               );
             })}

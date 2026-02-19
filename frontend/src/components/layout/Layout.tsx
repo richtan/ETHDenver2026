@@ -1,6 +1,44 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { Bot, Briefcase, Hammer, LayoutDashboard, User } from "lucide-react";
+import { useAccount } from "wagmi";
+import { useState } from "react";
+import { Bot, Briefcase, Hammer, LayoutDashboard, User, Droplets } from "lucide-react";
+import { AGENT_API_URL } from "../../config/wagmi";
+
+const IS_LOCAL = import.meta.env.VITE_CHAIN === "localhost";
+
+function FaucetButton() {
+  const { address, isConnected } = useAccount();
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  if (!IS_LOCAL || !isConnected) return null;
+
+  const drip = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${AGENT_API_URL}/api/faucet`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
+      if (res.ok) setSent(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={drip}
+      disabled={loading || sent}
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/20 transition-all disabled:opacity-50"
+    >
+      <Droplets className="h-3.5 w-3.5" />
+      {sent ? "10 ETH sent!" : loading ? "Sending..." : "Get Test ETH"}
+    </button>
+  );
+}
 
 export default function Layout() {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -42,7 +80,10 @@ export default function Layout() {
               </NavLink>
             </nav>
           </div>
-          <ConnectButton showBalance={true} chainStatus="icon" accountStatus="avatar" />
+          <div className="flex items-center gap-3">
+            <FaucetButton />
+            <ConnectButton showBalance={true} chainStatus="icon" accountStatus="avatar" />
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
