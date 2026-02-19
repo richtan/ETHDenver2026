@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useAccount } from "wagmi";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useAccount } from 'wagmi';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock,
   Coins,
@@ -9,39 +9,40 @@ import {
   ArrowRight,
   Loader2,
   Briefcase,
-} from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { useOpenTasks } from "../hooks/useOpenTasks";
-import { useAcceptTask } from "../hooks/useAcceptTask";
-import { useJob } from "../hooks/useJob";
-import { formatEth } from "../lib/formatEth";
+} from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { useOpenTasks } from '../hooks/useOpenTasks';
+import { useAcceptTask } from '../hooks/useAcceptTask';
+import { useJob } from '../hooks/useJob';
+import { formatEth } from '../lib/formatEth';
 
-type TaskTuple = readonly [
-  bigint, // id
-  bigint, // jobId
-  bigint, // sequenceIndex
-  string, // worker
-  string, // description
-  string, // proofRequirements
-  string, // deliverableURI
-  bigint, // reward
-  bigint, // deadline
-  bigint, // maxRetries
-  bigint, // retryCount
-  number, // status
-  string, // proofURI
-  string, // rejectionReason
-];
+/** Decoded task from getOpenTasks (wagmi/viem returns structs as objects) */
+type TaskStruct = {
+  id: bigint;
+  jobId: bigint;
+  sequenceIndex: bigint;
+  worker: string;
+  description: string;
+  proofRequirements: string;
+  deliverableURI: string;
+  reward: bigint;
+  deadline: bigint;
+  maxRetries: bigint;
+  retryCount: bigint;
+  status: number;
+  proofURI: string;
+  rejectionReason: string;
+};
 
 function truncate(text: string, maxLen = 100): string {
   if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen).trim() + "…";
+  return text.slice(0, maxLen).trim() + '…';
 }
 
 function formatDeadline(deadline: bigint): string {
   const now = Math.floor(Date.now() / 1000);
   const deadlineNum = Number(deadline);
-  if (deadlineNum <= now) return "Expired";
+  if (deadlineNum <= now) return 'Expired';
   return `${formatDistanceToNow(new Date(deadlineNum * 1000), { addSuffix: true })}`;
 }
 
@@ -85,7 +86,10 @@ const cardVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: {
+      duration: 0.35,
+      ease: [0.25, 0.46, 0.45, 0.94] as const,
+    },
   },
 };
 
@@ -95,14 +99,14 @@ function TaskCard({
   onAccept,
   canAccept,
 }: {
-  task: TaskTuple;
+  task: TaskStruct;
   isAccepting: boolean;
   onAccept: () => void;
   canAccept: boolean;
 }) {
-  const [id, jobId, , , description, , , reward, deadline] = task;
+  const { id, jobId, description, reward, deadline } = task;
   const deadlineStr = formatDeadline(deadline);
-  const isExpired = deadlineStr === "Expired";
+  const isExpired = deadlineStr === 'Expired';
 
   return (
     <motion.article
@@ -124,7 +128,7 @@ function TaskCard({
         </span>
         <span
           className={`inline-flex items-center gap-1.5 text-sm ${
-            isExpired ? "text-red-400/90" : "text-slate-400"
+            isExpired ? 'text-red-400/90' : 'text-slate-400'
           }`}
         >
           <Clock className="h-4 w-4 shrink-0" />
@@ -166,23 +170,23 @@ function TaskCard({
 export default function WorkerMarketplace() {
   const { isConnected } = useAccount();
   const { data: tasks, isLoading: tasksLoading } = useOpenTasks();
-  const {
-    acceptTask,
-    isPending,
-    isConfirming,
-    isSuccess,
-    error,
-  } = useAcceptTask();
+  const { acceptTask, isPending, isConfirming, isSuccess, error } =
+    useAcceptTask();
 
   const [acceptingTaskId, setAcceptingTaskId] = useState<bigint | null>(null);
 
   useEffect(() => {
-    if (isSuccess) {
-      setAcceptingTaskId(null);
-    }
+    if (!isSuccess) return;
+    const id = setTimeout(() => setAcceptingTaskId(null), 0);
+    return () => clearTimeout(id);
   }, [isSuccess]);
 
-  const taskList = (tasks ?? []) as unknown as TaskTuple[];
+  const taskList: TaskStruct[] = Array.isArray(tasks)
+    ? tasks.filter(
+        (t): t is TaskStruct =>
+          t != null && typeof t === 'object' && 'id' in t && 'jobId' in t
+      )
+    : [];
   const canAccept = isConnected && !isPending && !isConfirming;
   const isAccepting = isPending || isConfirming;
 
@@ -205,7 +209,7 @@ export default function WorkerMarketplace() {
             Available Tasks
           </h1>
           <span className="rounded-full border border-slate-700/60 bg-slate-800/50 px-3 py-1 text-sm font-medium text-slate-300">
-            {taskList.length} {taskList.length === 1 ? "task" : "tasks"}
+            {taskList.length} {taskList.length === 1 ? 'task' : 'tasks'}
           </span>
         </div>
         <p className="mt-3 text-lg text-slate-400">
@@ -263,14 +267,12 @@ export default function WorkerMarketplace() {
           <AnimatePresence mode="popLayout">
             {taskList.map((task) => (
               <TaskCard
-                key={task[0].toString()}
+                key={task.id.toString()}
                 task={task}
-                isAccepting={
-                  isAccepting && acceptingTaskId === task[0]
-                }
+                isAccepting={isAccepting && acceptingTaskId === task.id}
                 onAccept={() => {
-                  setAcceptingTaskId(task[0]);
-                  acceptTask(task[1], task[0]);
+                  setAcceptingTaskId(task.id);
+                  acceptTask(task.jobId, task.id);
                 }}
                 canAccept={canAccept}
               />
