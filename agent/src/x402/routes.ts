@@ -6,6 +6,7 @@ import { type JobOrchestrator } from "../orchestrator.js";
 import { config, NETWORK } from "../config.js";
 import { type AgentWallet } from "../wallet.js";
 import { clarifyJob } from "../clarifier.js";
+import { getWorkerProfile, setWorkerTags, getAllTaskTags, getRecommendedTasks } from "../supabase.js";
 
 const openai = new OpenAI();
 
@@ -127,6 +128,69 @@ export function registerRoutes(app: Express, orchestrator: JobOrchestrator) {
       });
       orchestrator.emitMetrics();
       res.json(JSON.parse(result.choices[0].message.content!));
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Worker Profile & Task Recommendation Endpoints ──────────
+
+  app.get("/api/worker/:address/profile", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isAddress(address)) {
+        res.status(400).json({ error: "Invalid address" });
+        return;
+      }
+      const profile = await getWorkerProfile(address);
+      res.json(profile ?? { wallet_address: address.toLowerCase(), tags: [] });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put("/api/worker/:address/tags", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isAddress(address)) {
+        res.status(400).json({ error: "Invalid address" });
+        return;
+      }
+      const { tags } = req.body;
+      if (!Array.isArray(tags)) {
+        res.status(400).json({ error: "tags must be an array of strings" });
+        return;
+      }
+      const profile = await setWorkerTags(address, tags);
+      res.json(profile);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/tasks/tags", async (_req, res) => {
+    try {
+      const taskTags = await getAllTaskTags();
+      res.json(taskTags);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/tasks/recommended/:address", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isAddress(address)) {
+        res.status(400).json({ error: "Invalid address" });
+        return;
+      }
+      const profile = await getWorkerProfile(address);
+      const workerTags: string[] = profile?.tags ?? [];
+      const openTaskIds: string[] = req.query.taskIds
+        ? (req.query.taskIds as string).split(",")
+        : [];
+      const recommendations = await getRecommendedTasks(workerTags, openTaskIds);
+      res.json(recommendations);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

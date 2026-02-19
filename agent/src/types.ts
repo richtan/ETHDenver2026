@@ -6,6 +6,7 @@ export interface TaskPlan {
   reward: string;
   deadlineMinutes: number;
   dependsOnPrevious: boolean;
+  tags: string[];
 }
 
 export interface ParsedTask {

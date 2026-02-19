@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,15 +10,21 @@ import {
   Loader2,
   Briefcase,
   CheckCircle2,
+  UserCog,
+  Sparkles,
+  List,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useOpenTasks } from '../hooks/useOpenTasks';
 import { useAcceptTask } from '../hooks/useAcceptTask';
 import { useClientJobs } from '../hooks/useClientJobs';
 import { useJob } from '../hooks/useJob';
+import { useWorkerProfile } from '../hooks/useWorkerProfile';
+import { useRecommendedTasks, type TaskRecommendation } from '../hooks/useRecommendedTasks';
+import { useTaskTags } from '../hooks/useTaskTags';
+import { WorkerProfilePanel } from '../components/WorkerProfilePanel';
 import { formatEth } from '../lib/formatEth';
 
-/** Decoded task from getOpenTasks (wagmi/viem returns structs as objects) */
 type TaskStruct = {
   id: bigint;
   jobId: bigint;
@@ -100,21 +106,40 @@ function TaskCard({
   isAccepting,
   onAccept,
   canAccept,
+  taskTags,
+  workerTags,
+  recommendation,
 }: {
   task: TaskStruct;
   isAccepting: boolean;
   onAccept: () => void;
   canAccept: boolean;
+  taskTags?: string[];
+  workerTags?: string[];
+  recommendation?: TaskRecommendation;
 }) {
   const { id, jobId, description, reward, deadline } = task;
   const deadlineStr = formatDeadline(deadline);
   const isExpired = deadlineStr === 'Expired';
+  const matchPercent = recommendation
+    ? Math.round(recommendation.score * 100)
+    : 0;
 
   return (
     <motion.article
       variants={cardVariants}
       className="group relative flex flex-col rounded-xl border border-slate-800/60 bg-slate-900/40 p-5 backdrop-blur-sm transition-colors hover:border-slate-700/80 hover:bg-slate-900/60"
     >
+      {/* Match badge */}
+      {recommendation && matchPercent > 0 && (
+        <div className="absolute -top-2.5 right-3">
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+            <Sparkles className="h-3 w-3" />
+            {matchPercent}% match
+          </span>
+        </div>
+      )}
+
       <div className="mb-3">
         <JobContextBadge jobId={jobId} />
       </div>
@@ -122,6 +147,27 @@ function TaskCard({
       <p className="text-slate-300 line-clamp-3 min-h-[4.5rem]">
         {truncate(description)}
       </p>
+
+      {/* Tag pills */}
+      {taskTags && taskTags.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {taskTags.map((tag) => {
+            const isMatch = workerTags?.includes(tag);
+            return (
+              <span
+                key={tag}
+                className={`rounded-full px-2 py-0.5 text-xs ${
+                  isMatch
+                    ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-400'
+                    : 'border border-slate-700/50 bg-slate-800/40 text-slate-500'
+                }`}
+              >
+                {tag}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <span className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-400">
@@ -170,17 +216,23 @@ function TaskCard({
   );
 }
 
+type Tab = 'forYou' | 'all';
+
 export default function WorkerMarketplace() {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const navigate = useNavigate();
   const { data: tasks, isLoading: tasksLoading } = useOpenTasks();
   const { jobIds: myJobIds } = useClientJobs();
   const { acceptTask, isPending, isConfirming, isSuccess, error } =
     useAcceptTask();
+  const { data: profile } = useWorkerProfile(address);
+  const { data: taskTagsData } = useTaskTags();
 
   const [acceptingTaskId, setAcceptingTaskId] = useState<bigint | null>(null);
   const [hiddenTaskIds, setHiddenTaskIds] = useState<Set<bigint>>(new Set());
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('forYou');
 
   useEffect(() => {
     if (!isSuccess || acceptingTaskId === null) return;
@@ -202,16 +254,81 @@ export default function WorkerMarketplace() {
           !myJobIdSet.has(t.jobId.toString())
       )
     : [];
+
+  const openTaskIds = useMemo(
+    () => taskList.map((t) => t.id.toString()),
+    [taskList],
+  );
+
+  const workerTags = profile?.tags ?? [];
+  const { data: recommendations } = useRecommendedTasks(address, openTaskIds);
+
+  // Build task tag lookup
+  const taskTagMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (taskTagsData) {
+      for (const entry of taskTagsData) {
+        map.set(entry.task_id, entry.tags);
+      }
+    }
+    return map;
+  }, [taskTagsData]);
+
+  // Build recommendation lookup
+  const recMap = useMemo(() => {
+    const map = new Map<string, TaskRecommendation>();
+    if (recommendations) {
+      for (const rec of recommendations) {
+        map.set(rec.taskId, rec);
+      }
+    }
+    return map;
+  }, [recommendations]);
+
+  // Sort tasks for "For You" tab
+  const forYouTasks = useMemo(() => {
+    if (!recommendations || recommendations.length === 0) return [];
+    const recOrder = new Map(recommendations.map((r, i) => [r.taskId, i]));
+    return [...taskList]
+      .filter((t) => recMap.has(t.id.toString()))
+      .sort((a, b) => {
+        const aIdx = recOrder.get(a.id.toString()) ?? Infinity;
+        const bIdx = recOrder.get(b.id.toString()) ?? Infinity;
+        return aIdx - bIdx;
+      });
+  }, [taskList, recommendations, recMap]);
+
   const canAccept = isConnected && !isPending && !isConfirming;
   const isAccepting = isPending || isConfirming;
+  const hasWorkerTags = workerTags.length > 0;
+  const displayTasks = activeTab === 'forYou' ? forYouTasks : taskList;
 
   return (
     <div className="mx-auto max-w-6xl">
+      {/* Profile Panel */}
+      <AnimatePresence>
+        {showProfile && address && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black"
+              onClick={() => setShowProfile(false)}
+            />
+            <WorkerProfilePanel
+              address={address}
+              onClose={() => setShowProfile(false)}
+            />
+          </>
+        )}
+      </AnimatePresence>
+
       <motion.section
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="mb-10"
+        className="mb-8"
       >
         <div className="flex items-center gap-2 text-emerald-400/90 mb-3">
           <Hammer className="h-6 w-6" />
@@ -219,18 +336,59 @@ export default function WorkerMarketplace() {
             Task Marketplace
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Available Tasks
-          </h1>
-          <span className="rounded-full border border-slate-700/60 bg-slate-800/50 px-3 py-1 text-sm font-medium text-slate-300">
-            {taskList.length} {taskList.length === 1 ? 'task' : 'tasks'}
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Available Tasks
+            </h1>
+            <span className="rounded-full border border-slate-700/60 bg-slate-800/50 px-3 py-1 text-sm font-medium text-slate-300">
+              {taskList.length} {taskList.length === 1 ? 'task' : 'tasks'}
+            </span>
+          </div>
+          {isConnected && (
+            <button
+              onClick={() => setShowProfile(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-800/50 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-emerald-500/40 hover:bg-slate-800/80 hover:text-white"
+            >
+              <UserCog className="h-4 w-4" />
+              {hasWorkerTags
+                ? `${workerTags.length} tag${workerTags.length !== 1 ? 's' : ''}`
+                : 'Set Skill Tags'}
+            </button>
+          )}
         </div>
         <p className="mt-3 text-lg text-slate-400">
           Browse open tasks and accept work to earn ETH on Base.
         </p>
       </motion.section>
+
+      {/* Tab Bar */}
+      {isConnected && (
+        <div className="mb-6 flex gap-1 rounded-lg border border-slate-800/60 bg-slate-900/40 p-1 w-fit">
+          <button
+            onClick={() => setActiveTab('forYou')}
+            className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
+              activeTab === 'forYou'
+                ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
+                : 'text-slate-400 hover:text-white border border-transparent'
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            For You
+          </button>
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
+              activeTab === 'all'
+                ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
+                : 'text-slate-400 hover:text-white border border-transparent'
+            }`}
+          >
+            <List className="h-4 w-4" />
+            All Tasks
+          </button>
+        </div>
+      )}
 
       {error && (
         <motion.div
@@ -269,7 +427,28 @@ export default function WorkerMarketplace() {
           <Loader2 className="h-8 w-8 animate-spin" />
           <span className="text-lg">Loading tasks…</span>
         </div>
-      ) : !taskList.length ? (
+      ) : activeTab === 'forYou' && !hasWorkerTags ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="rounded-xl border border-dashed border-slate-700/60 bg-slate-900/30 py-16 text-center"
+        >
+          <UserCog className="mx-auto mb-4 h-12 w-12 text-slate-600" />
+          <p className="text-lg font-medium text-slate-400">
+            Set up your skill tags to get personalized recommendations
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            Tell us what you're good at and we'll match you with relevant tasks.
+          </p>
+          <button
+            onClick={() => setShowProfile(true)}
+            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/20 transition hover:from-emerald-500 hover:to-teal-500"
+          >
+            <UserCog className="h-4 w-4" />
+            Set Skill Tags
+          </button>
+        </motion.div>
+      ) : !displayTasks.length ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -277,10 +456,14 @@ export default function WorkerMarketplace() {
         >
           <Briefcase className="mx-auto mb-4 h-12 w-12 text-slate-600" />
           <p className="text-lg font-medium text-slate-400">
-            No available tasks right now
+            {activeTab === 'forYou'
+              ? 'No matching tasks right now'
+              : 'No available tasks right now'}
           </p>
           <p className="mt-2 text-sm text-slate-500">
-            Check back later for new work opportunities.
+            {activeTab === 'forYou'
+              ? 'Try adding more skill tags or check the All Tasks tab.'
+              : 'Check back later for new work opportunities.'}
           </p>
         </motion.div>
       ) : (
@@ -288,21 +471,28 @@ export default function WorkerMarketplace() {
           variants={containerVariants}
           initial="hidden"
           animate="visible"
+          key={activeTab}
           className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3"
         >
           <AnimatePresence mode="popLayout">
-            {taskList.map((task) => (
-              <TaskCard
-                key={task.id.toString()}
-                task={task}
-                isAccepting={isAccepting && acceptingTaskId === task.id}
-                onAccept={() => {
-                  setAcceptingTaskId(task.id);
-                  acceptTask(task.jobId, task.id);
-                }}
-                canAccept={canAccept}
-              />
-            ))}
+            {displayTasks.map((task) => {
+              const taskIdStr = task.id.toString();
+              return (
+                <TaskCard
+                  key={taskIdStr}
+                  task={task}
+                  isAccepting={isAccepting && acceptingTaskId === task.id}
+                  onAccept={() => {
+                    setAcceptingTaskId(task.id);
+                    acceptTask(task.jobId, task.id);
+                  }}
+                  canAccept={canAccept}
+                  taskTags={taskTagMap.get(taskIdStr)}
+                  workerTags={workerTags}
+                  recommendation={recMap.get(taskIdStr)}
+                />
+              );
+            })}
           </AnimatePresence>
         </motion.div>
       )}

@@ -14,6 +14,7 @@ Each task should have:
 - reward: ETH amount (as string like "0.003")
 - deadlineMinutes: Time allowed
 - dependsOnPrevious: true if this task needs the previous one's deliverable
+- tags: 3-5 lowercase skill tags describing the type of work (e.g. ["photography", "design", "writing", "data-entry", "research", "social-media", "video", "translation", "coding", "physical-labor", "marketing", "printing"])
 
 Rules:
 - Total rewards must be LESS than the budget (the difference is your profit)
@@ -51,6 +52,7 @@ export async function decomposeJob(description: string, budget: bigint): Promise
         reward: rewardEach,
         deadlineMinutes: 120,
         dependsOnPrevious: false,
+        tags: ["design", "marketing", "graphic-design"],
       },
       {
         description: "Print and distribute flyers at the specified locations",
@@ -58,6 +60,7 @@ export async function decomposeJob(description: string, budget: bigint): Promise
         reward: rewardEach,
         deadlineMinutes: 180,
         dependsOnPrevious: true,
+        tags: ["physical-labor", "printing", "marketing"],
       },
     ];
   }

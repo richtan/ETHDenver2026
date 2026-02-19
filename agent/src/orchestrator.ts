@@ -10,6 +10,7 @@ import { addTaskOnChain, approveTaskOnChain, completeJobOnChain, rejectProofOnCh
 import { ethToUsd } from "./price-feed.js";
 import { EventEmitter } from "events";
 import { type AgentAction, type AgentTransaction } from "./types.js";
+import { setTaskTags } from "./supabase.js";
 
 export class JobOrchestrator extends EventEmitter {
   private jobTaskCounts = new Map<bigint, number>();
@@ -135,6 +136,12 @@ export class JobOrchestrator extends EventEmitter {
       this.emit("action", { type: "job_decomposed", jobId: jobId.toString(),
         taskCount: taskPlan.length, margin, timestamp: Date.now() });
 
+      const nextId = await publicClient.readContract({
+        address: config.contractAddress,
+        abi: JOB_MARKETPLACE_ABI,
+        functionName: "nextTaskId",
+      }) as bigint;
+
       for (let i = 0; i < taskPlan.length; i++) {
         const task = taskPlan[i];
         const txHash = await addTaskOnChain(jobId, {
@@ -145,6 +152,14 @@ export class JobOrchestrator extends EventEmitter {
           maxRetries: 3n,
         }, i);
         costTracker.logCost({ type: "gas", amount_usd: 0.001, details: `addTask-${i}` });
+
+        const taskId = (nextId + BigInt(i)).toString();
+        if (task.tags && task.tags.length > 0) {
+          setTaskTags(taskId, task.tags, jobId.toString()).catch((err) =>
+            console.error(`Failed to store tags for task ${taskId}:`, err),
+          );
+        }
+
         this.emit("action", { type: "task_posted", jobId: jobId.toString(),
           description: task.description, reward: task.reward, timestamp: Date.now() });
         this.emit("transaction", { action: "Add task", hash: txHash, timestamp: Date.now() });

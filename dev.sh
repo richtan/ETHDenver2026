@@ -38,6 +38,8 @@ save_env_local() {
 OPENAI_API_KEY=$OPENAI_API_KEY
 PINATA_JWT=${PINATA_JWT:-}
 PINATA_GATEWAY=${PINATA_GATEWAY:-https://gateway.pinata.cloud}
+SUPABASE_URL=${SUPABASE_URL:-}
+SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
 EOF
   echo "  Saved secrets to .env.local"
 }
@@ -86,7 +88,7 @@ fi
 load_env_local
 
 NEEDS_PROMPT=false
-if [ -z "${OPENAI_API_KEY:-}" ] || [ -z "${PINATA_JWT:-}" ]; then
+if [ -z "${OPENAI_API_KEY:-}" ] || [ -z "${PINATA_JWT:-}" ] || [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
   NEEDS_PROMPT=true
 fi
 
@@ -96,6 +98,8 @@ if [ "$NEEDS_PROMPT" = "true" ]; then
   prompt_secret "OPENAI_API_KEY"  "Enter your OpenAI API key"                          "true"
   prompt_secret "PINATA_JWT"      "Enter Pinata JWT for IPFS uploads (Enter to skip)"  "false"
   prompt_secret "PINATA_GATEWAY"  "Pinata gateway URL (Enter for default)"             "false" "https://gateway.pinata.cloud"
+  prompt_secret "SUPABASE_URL"    "Enter your Supabase project URL"                    "true"
+  prompt_secret "SUPABASE_ANON_KEY" "Enter your Supabase anon key"                     "true"
   save_env_local
   echo ""
 else
@@ -157,6 +161,8 @@ AGENT_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2
 OPENAI_API_KEY=$OPENAI_API_KEY
 PINATA_JWT=${PINATA_JWT:-}
 PINATA_GATEWAY=${PINATA_GATEWAY:-https://gateway.pinata.cloud}
+SUPABASE_URL=${SUPABASE_URL:-}
+SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
 PORT=3001
 EOF
 
@@ -167,6 +173,8 @@ VITE_AGENT_API_URL=http://localhost:3001
 VITE_WALLETCONNECT_PROJECT_ID=placeholder-for-dev
 VITE_PINATA_JWT=${PINATA_JWT:-}
 VITE_PINATA_GATEWAY=${PINATA_GATEWAY:-https://gateway.pinata.cloud}
+VITE_SUPABASE_URL=${SUPABASE_URL:-}
+VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
 EOF
 
 echo "Environment files written."
