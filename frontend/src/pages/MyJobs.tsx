@@ -312,7 +312,7 @@ function ExpandableJobCard({ jobId }: { jobId: bigint }) {
   const { aiTasks: rawAiTasks } = useAiTasks(jobId);
   const jobIdStr = jobId.toString();
   const aiTasks = rawAiTasks.filter((t) => String(t.job_id) === jobIdStr);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   if (isLoading || !job) {
     return (

@@ -46,7 +46,7 @@ const configs: Record<Network, NetworkConfig> = {
     explorerUrl: "https://sepolia.basescan.org",
     contractAddress: process.env.CONTRACT_ADDRESS as Address,
     deploymentBlock: BigInt(process.env.DEPLOYMENT_BLOCK || "0"),
-    walletMode: "cdp",
+    walletMode: "anvil",
     erc8021Enabled: !!process.env.BUILDER_CODE,
     x402Enabled: false,
     reimbursementEnabled: false,

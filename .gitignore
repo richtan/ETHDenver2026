@@ -7,10 +7,9 @@ out/
 cache/
 broadcast/
 
-# Environment files
-.env
-.env.local
-.env.*.local
+# Environment files — block all, whitelist .env.example
+.env*
+!.env.example
 
 # Foundry
 contracts/out/

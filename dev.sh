@@ -8,9 +8,10 @@ AGENT_PID=""
 FRONTEND_PID=""
 
 # Handle --reset flag to force re-prompting of secrets
+RESET=false
 if [ "${1:-}" = "--reset" ]; then
-  echo "Resetting saved secrets..."
-  rm -f "$ENV_LOCAL"
+  RESET=true
+  echo "Re-prompting all secrets (press Enter to keep current values)..."
 fi
 
 cleanup() {
@@ -48,24 +49,35 @@ prompt_secret() {
   local var_name="$1" prompt_msg="$2" required="$3" default_val="${4:-}"
   local current_val="${!var_name:-}"
 
-  if [ -n "$current_val" ]; then
+  # Skip if value exists and not resetting
+  if [ -n "$current_val" ] && [ "$RESET" != "true" ]; then
     return
   fi
 
+  local hint=""
+  if [ -n "$current_val" ]; then
+    hint=" (Enter to keep current)"
+  fi
+
   if [ "$required" = "true" ]; then
-    while [ -z "$current_val" ]; do
-      printf "  %s: " "$prompt_msg"
-      read -r current_val
-      if [ -z "$current_val" ]; then
-        echo "  (required -- cannot be empty)"
-      fi
-    done
-  else
-    printf "  %s: " "$prompt_msg"
-    read -r current_val
-    if [ -z "$current_val" ] && [ -n "$default_val" ]; then
-      current_val="$default_val"
+    printf "  %s%s: " "$prompt_msg" "$hint"
+    read -r input
+    if [ -z "$input" ] && [ -n "$current_val" ]; then
+      input="$current_val"
     fi
+    while [ -z "$input" ]; do
+      echo "  (required -- cannot be empty)"
+      printf "  %s: " "$prompt_msg"
+      read -r input
+    done
+    current_val="$input"
+  else
+    printf "  %s%s: " "$prompt_msg" "$hint"
+    read -r input
+    if [ -z "$input" ]; then
+      input="${current_val:-$default_val}"
+    fi
+    current_val="$input"
   fi
 
   export "$var_name=$current_val"
@@ -88,16 +100,21 @@ fi
 load_env_local
 
 NEEDS_PROMPT=false
-if [ -z "${OPENAI_API_KEY:-}" ] || [ -z "${PINATA_JWT:-}" ] || [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+if [ "$RESET" = "true" ] || [ -z "${OPENAI_API_KEY:-}" ] || [ -z "${PINATA_JWT:-}" ] || [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
   NEEDS_PROMPT=true
 fi
 
 if [ "$NEEDS_PROMPT" = "true" ]; then
   echo ""
   echo "Configuring secrets (saved to .env.local for future runs)..."
+  [ -z "${OPENAI_API_KEY:-}" ] && echo "  Get OpenAI key at: https://platform.openai.com/api-keys"
   prompt_secret "OPENAI_API_KEY"  "Enter your OpenAI API key"                          "true"
+  [ -z "${PINATA_JWT:-}" ] && echo "  Get Pinata JWT at: https://app.pinata.cloud -> API Keys"
   prompt_secret "PINATA_JWT"      "Enter Pinata JWT for IPFS uploads (Enter to skip)"  "false"
   prompt_secret "PINATA_GATEWAY"  "Pinata gateway URL (Enter for default)"             "false" "https://gateway.pinata.cloud"
+  if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+    echo "  Get Supabase credentials at: https://supabase.com -> Settings > API"
+  fi
   prompt_secret "SUPABASE_URL"    "Enter your Supabase project URL"                    "true"
   prompt_secret "SUPABASE_ANON_KEY" "Enter your Supabase anon key"                     "true"
   save_env_local
@@ -139,11 +156,12 @@ DEPLOYER_KEY="0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
 
 # ── Deploy contract ───────────────────────────────────────────
 echo "Deploying JobMarketplace..."
+set +e
 DEPLOY_OUTPUT=$(cd "$ROOT/contracts" && \
   AGENT_ADDRESS="$AGENT_ADDR" PRIVATE_KEY="$DEPLOYER_KEY" \
   forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast 2>&1)
-
 CONTRACT_ADDRESS=$(echo "$DEPLOY_OUTPUT" | grep "JobMarketplace deployed to:" | awk '{print $NF}')
+set -e
 
 if [ -z "$CONTRACT_ADDRESS" ]; then
   echo "ERROR: Deployment failed."

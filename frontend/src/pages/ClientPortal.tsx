@@ -391,7 +391,10 @@ export default function ClientPortal() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description, budget, conversation: convo }),
       });
-      if (!res.ok) throw new Error('Clarification request failed');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error || 'Clarification request failed');
+      }
       const data = await res.json();
       if (data.taskPreview) setTaskPreview(data.taskPreview);
       if (data.ready) {

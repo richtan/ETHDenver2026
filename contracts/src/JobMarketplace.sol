@@ -83,7 +83,7 @@ contract JobMarketplace is Ownable, ReentrancyGuard, Pausable {
     // ─── Client-Facing ────────────────────────────────────────────────
 
     function createJob(string calldata description) external payable whenNotPaused returns (uint256 jobId) {
-        require(msg.value >= 0.001 ether, "Minimum budget 0.001 ETH");
+        require(msg.value >= 0.0001 ether, "Minimum budget 0.0001 ETH");
         require(bytes(description).length > 0, "Empty description");
 
         jobId = uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, _jobNonce++)));

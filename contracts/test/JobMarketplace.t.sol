@@ -87,8 +87,8 @@ contract JobMarketplaceTest is Test {
 
     function test_createJob_revertMinBudget() public {
         vm.prank(client);
-        vm.expectRevert("Minimum budget 0.001 ETH");
-        marketplace.createJob{value: 0.0009 ether}("test");
+        vm.expectRevert("Minimum budget 0.0001 ETH");
+        marketplace.createJob{value: 0.00009 ether}("test");
     }
 
     function test_createJob_revertEmptyDescription() public {
@@ -123,8 +123,8 @@ contract JobMarketplaceTest is Test {
         vm.prank(agentWallet);
         uint256 taskId = marketplace.addTask(jobId, "Design flyer", "Upload screenshot", 0.003 ether, 7200, 3);
 
-        assertEq(taskId, 0);
-        JobMarketplace.Task memory task = marketplace.getTask(0);
+        assertEq(taskId, 1);
+        JobMarketplace.Task memory task = marketplace.getTask(1);
         assertEq(task.description, "Design flyer");
         assertEq(task.reward, 0.003 ether);
         assertEq(uint256(task.status), uint256(JobMarketplace.TaskStatus.Open));
