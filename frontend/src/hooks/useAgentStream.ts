@@ -27,10 +27,39 @@ export interface Metrics {
   revenueBreakdown: { jobProfits: number; aiServices: number; fees: number };
 }
 
+export interface OperationLine {
+  label: string;
+  calls: number;
+  costPerCall: number;
+  totalCost: number;
+}
+
+export interface ProfitDetails {
+  openaiLines: OperationLine[];
+  gasLines: OperationLine[];
+  revenueLines: { label: string; amount: number; count: number }[];
+  autonomyMetrics: {
+    costCoverageRatio: number;
+    revenuePerJob: number;
+    costPerJob: number;
+    profitMarginPct: number;
+    openaiAsCostPct: number;
+    gasAsCostPct: number;
+  };
+  pnl: {
+    totalRevenue: number;
+    openaiCosts: number;
+    gasCosts: number;
+    workerCosts: number;
+    netProfit: number;
+  };
+}
+
 export function useAgentStream() {
   const [actions, setActions] = useState<AgentAction[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [transactions, setTransactions] = useState<AgentTransaction[]>([]);
+  const [profitDetails, setProfitDetails] = useState<ProfitDetails | null>(null);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -39,14 +68,16 @@ export function useAgentStream() {
     es.onopen = async () => {
       setConnected(true);
       try {
-        const [actionsRes, txRes, metricsRes] = await Promise.all([
+        const [actionsRes, txRes, metricsRes, profitRes] = await Promise.all([
           fetch(`${AGENT_API_URL}/api/actions`).then(r => r.json()),
           fetch(`${AGENT_API_URL}/api/transactions`).then(r => r.json()),
           fetch(`${AGENT_API_URL}/api/metrics`).then(r => r.json()),
+          fetch(`${AGENT_API_URL}/api/profit-details`).then(r => r.json()),
         ]);
         setActions(actionsRes);
         setTransactions(txRes);
         setMetrics(metricsRes);
+        setProfitDetails(profitRes);
       } catch { /* Initial load may fail if agent not ready */ }
     };
     es.onerror = () => setConnected(false);
@@ -55,7 +86,13 @@ export function useAgentStream() {
       const action = JSON.parse(e.data);
       setActions((prev) => [action, ...prev].slice(0, 100));
     });
-    es.addEventListener("metrics", (e) => setMetrics(JSON.parse(e.data)));
+    es.addEventListener("metrics", (e) => {
+      setMetrics(JSON.parse(e.data));
+      fetch(`${AGENT_API_URL}/api/profit-details`)
+        .then(r => r.json())
+        .then(setProfitDetails)
+        .catch(() => {});
+    });
     es.addEventListener("transaction", (e) => {
       const tx = JSON.parse(e.data);
       setTransactions((prev) => [tx, ...prev].slice(0, 200));
@@ -63,5 +100,5 @@ export function useAgentStream() {
     return () => es.close();
   }, []);
 
-  return { actions, metrics, transactions, connected };
+  return { actions, metrics, transactions, profitDetails, connected };
 }

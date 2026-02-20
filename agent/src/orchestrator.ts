@@ -13,11 +13,33 @@ import { ethToUsd } from "./price-feed.js";
 import { EventEmitter } from "events";
 import { type AgentAction, type AgentTransaction } from "./types.js";
 import { setTaskTags } from "./supabase.js";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ACTIONS_PATH = join(__dirname, "..", "recent-actions.json");
+const TRANSACTIONS_PATH = join(__dirname, "..", "recent-transactions.json");
 
 export class JobOrchestrator extends EventEmitter {
   private jobTaskCounts = new Map<bigint, number>();
   private recentActions: AgentAction[] = [];
   private recentTransactions: AgentTransaction[] = [];
+
+  constructor() {
+    super();
+    // Restore persisted actions and transactions so dashboard shows history after restart
+    try {
+      if (existsSync(ACTIONS_PATH)) {
+        this.recentActions = JSON.parse(readFileSync(ACTIONS_PATH, "utf-8"));
+      }
+    } catch { /* start fresh if file is corrupt */ }
+    try {
+      if (existsSync(TRANSACTIONS_PATH)) {
+        this.recentTransactions = JSON.parse(readFileSync(TRANSACTIONS_PATH, "utf-8"));
+      }
+    } catch { /* start fresh if file is corrupt */ }
+  }
 
   setJobTaskCount(jobId: bigint, count: number) {
     this.jobTaskCounts.set(jobId, count);
@@ -29,9 +51,11 @@ export class JobOrchestrator extends EventEmitter {
   override emit(event: string | symbol, ...args: any[]): boolean {
     if (event === "action" && args[0]) {
       this.recentActions = [args[0], ...this.recentActions].slice(0, 200);
+      try { writeFileSync(ACTIONS_PATH, JSON.stringify(this.recentActions)); } catch { /* non-fatal */ }
     }
     if (event === "transaction" && args[0]) {
       this.recentTransactions = [args[0], ...this.recentTransactions].slice(0, 200);
+      try { writeFileSync(TRANSACTIONS_PATH, JSON.stringify(this.recentTransactions)); } catch { /* non-fatal */ }
     }
     return super.emit(event, ...args);
   }

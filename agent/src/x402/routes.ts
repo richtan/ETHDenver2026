@@ -70,6 +70,10 @@ export function registerRoutes(app: Express, orchestrator: JobOrchestrator) {
     res.json(costTracker.getMetricsSnapshot());
   });
 
+  app.get("/api/profit-details", (_req, res) => {
+    res.json(costTracker.getProfitDetails());
+  });
+
   app.get("/api/actions", (_req, res) => {
     res.json(orchestrator.getRecentActions());
   });

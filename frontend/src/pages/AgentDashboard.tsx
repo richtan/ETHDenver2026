@@ -11,9 +11,12 @@ import {
   Clock,
   Circle,
   AlertCircle,
+  BarChart2,
+  Cpu,
+  Flame,
 } from "lucide-react";
 import { useAgentStream } from "../hooks/useAgentStream";
-import type { AgentAction, AgentTransaction } from "../hooks/useAgentStream";
+import type { AgentAction, AgentTransaction, ProfitDetails, OperationLine } from "../hooks/useAgentStream";
 import { truncateAddress, formatUsd } from "../lib/formatEth";
 import { useEthPrice } from "../hooks/useEthPrice";
 
@@ -178,37 +181,258 @@ function BreakdownBar({ label, pct, color }: { label: string; pct: number; color
   );
 }
 
-function TxRow({ tx, ethPrice }: { tx: AgentTransaction; ethPrice: number | null }) {
+// ── New: P&L + Self-Sufficiency Panel ────────────────────────────
+
+function PnlRow({ label, amount, sign, isTotal }: { label: string; amount: number; sign: "+" | "-" | "="; isTotal?: boolean }) {
+  const signColor = sign === "+" ? "text-emerald-400" : sign === "-" ? "text-red-400" : amount >= 0 ? "text-emerald-400" : "text-red-400";
   return (
-    <tr className="border-b border-slate-800/40 text-sm transition-colors hover:bg-slate-800/20">
-      <td className="py-2.5 pr-3 font-mono text-xs text-slate-500 whitespace-nowrap">
-        {timeAgo(tx.timestamp)}
-      </td>
-      <td className="py-2.5 pr-3 text-slate-300 capitalize">{tx.action.replace(/_/g, " ")}</td>
-      <td className="py-2.5 pr-3 font-mono text-slate-200">
-        {tx.amount ? <>{tx.amount} ETH<span className="text-slate-500 text-xs">{ethToUsdStr(tx.amount, ethPrice)}</span></> : "—"}
-      </td>
-      <td className="py-2.5 font-mono text-xs">
-        {tx.hash ? (
-          <a
-            href={`${EXPLORER}${tx.hash}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors"
-          >
-            {truncateAddress(tx.hash)}
-            <ExternalLink className="h-3 w-3" />
-          </a>
+    <div className={`flex items-center justify-between py-1.5 ${isTotal ? "border-t border-slate-700/60 mt-1 pt-2.5" : ""}`}>
+      <span className={`text-sm ${isTotal ? "font-semibold text-white" : "text-slate-400"}`}>{label}</span>
+      <span className={`font-mono text-sm font-semibold ${signColor}`}>
+        {sign !== "=" ? sign : amount >= 0 ? "+" : ""}{formatUsd(Math.abs(amount))}
+      </span>
+    </div>
+  );
+}
+
+function AutonMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-slate-800/60 bg-slate-800/30 px-3 py-2.5">
+      <p className="text-xs text-slate-500 mb-1">{label}</p>
+      <p className="font-mono text-sm font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function PnlPanel({ details }: { details: ProfitDetails | null }) {
+  const am = details?.autonomyMetrics;
+  const pnl = details?.pnl;
+  const na = "—";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2, duration: 0.45 }}
+      className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+    >
+      {/* P&L Waterfall */}
+      <div className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <TrendingUp className="h-4 w-4 text-emerald-400" />
+          <h3 className="text-sm font-semibold text-white">Profit & Loss</h3>
+        </div>
+        {pnl ? (
+          <div>
+            <PnlRow label="Total Revenue" amount={pnl.totalRevenue} sign="+" />
+            <PnlRow label="OpenAI API Costs" amount={pnl.openaiCosts} sign="-" />
+            <PnlRow label="Gas Costs" amount={pnl.gasCosts} sign="-" />
+            {pnl.workerCosts > 0 && <PnlRow label="Worker Costs" amount={pnl.workerCosts} sign="-" />}
+            <PnlRow label="Net Profit" amount={pnl.netProfit} sign="=" isTotal />
+          </div>
         ) : (
-          <span className="text-slate-600">—</span>
+          <p className="text-sm text-slate-600 py-4 text-center">Awaiting data…</p>
         )}
-      </td>
-    </tr>
+      </div>
+
+      {/* Self-Sufficiency Metrics */}
+      <div className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Cpu className="h-4 w-4 text-blue-400" />
+          <h3 className="text-sm font-semibold text-white">Self-Sufficiency Metrics</h3>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <AutonMetric
+            label="Cost Coverage Ratio"
+            value={am ? `${am.costCoverageRatio.toFixed(2)}x` : na}
+          />
+          <AutonMetric
+            label="Revenue per Job"
+            value={am && am.revenuePerJob > 0 ? formatUsd(am.revenuePerJob) : na}
+          />
+          <AutonMetric
+            label="Cost per Job"
+            value={am && am.costPerJob > 0 ? formatUsd(am.costPerJob) : na}
+          />
+          <AutonMetric
+            label="Profit Margin"
+            value={am && details?.pnl.totalRevenue ? `${am.profitMarginPct.toFixed(1)}%` : na}
+          />
+          <AutonMetric
+            label="OpenAI % of Costs"
+            value={am ? `${am.openaiAsCostPct.toFixed(1)}%` : na}
+          />
+          <AutonMetric
+            label="Gas % of Costs"
+            value={am ? `${am.gasAsCostPct.toFixed(1)}%` : na}
+          />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── New: Operation Cost Table ─────────────────────────────────────
+
+function OperationCostTable({
+  title,
+  icon: Icon,
+  lines,
+  totalCost,
+  accentColor,
+  delay = 0,
+}: {
+  title: string;
+  icon: React.ElementType;
+  lines: OperationLine[];
+  totalCost: number;
+  accentColor: "orange" | "red";
+  delay?: number;
+}) {
+  const headerColor = accentColor === "orange" ? "text-orange-400" : "text-red-400";
+  const badgeColor = accentColor === "orange" ? "bg-orange-500/10 text-orange-400" : "bg-red-500/10 text-red-400";
+  const barColor = accentColor === "orange" ? "bg-gradient-to-r from-orange-500 to-amber-400" : "bg-gradient-to-r from-red-500 to-rose-400";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.45 }}
+      className="rounded-xl border border-slate-800/60 bg-slate-900/40 overflow-hidden"
+    >
+      <div className="flex items-center gap-2.5 border-b border-slate-800/60 px-5 py-3.5">
+        <Icon className={`h-4 w-4 ${headerColor}`} />
+        <h3 className="text-sm font-semibold text-white">{title}</h3>
+        <span className={`ml-auto rounded-full px-2.5 py-0.5 text-xs font-mono font-semibold ${badgeColor}`}>
+          {formatUsd(totalCost)} total
+        </span>
+      </div>
+
+      {lines.length === 0 ? (
+        <div className="flex items-center justify-center py-8 text-sm text-slate-600">
+          No costs tracked yet
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-slate-800/40 text-xs uppercase tracking-wider text-slate-600">
+                <th className="px-5 py-2.5 font-medium">Operation</th>
+                <th className="py-2.5 font-medium text-right pr-4">Calls</th>
+                <th className="py-2.5 font-medium text-right pr-4">/Call</th>
+                <th className="py-2.5 font-medium text-right pr-5">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((line, i) => {
+                const pct = totalCost > 0 ? (line.totalCost / totalCost) * 100 : 0;
+                return (
+                  <motion.tr
+                    key={line.label}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: delay + 0.05 * i, duration: 0.3 }}
+                    className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-colors"
+                  >
+                    <td className="px-5 py-3">
+                      <div className="text-sm text-slate-200 mb-1">{line.label}</div>
+                      <div className="h-1 w-24 overflow-hidden rounded-full bg-slate-800">
+                        <div
+                          className={`h-full rounded-full ${barColor}`}
+                          style={{ width: `${Math.min(pct, 100)}%` }}
+                        />
+                      </div>
+                    </td>
+                    <td className="py-3 pr-4 font-mono text-sm text-slate-300 text-right">
+                      {line.calls}
+                    </td>
+                    <td className="py-3 pr-4 font-mono text-xs text-slate-500 text-right">
+                      {formatUsd(line.costPerCall)}
+                    </td>
+                    <td className="py-3 pr-5 font-mono text-sm font-semibold text-slate-200 text-right">
+                      {formatUsd(line.totalCost)}
+                    </td>
+                  </motion.tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ── New: Revenue Detail Panel ─────────────────────────────────────
+
+function RevenueDetailPanel({ details }: { details: ProfitDetails | null }) {
+  const lines = details?.revenueLines ?? [];
+  const total = lines.reduce((s, l) => s + l.amount, 0);
+
+  const colors = [
+    { bar: "bg-gradient-to-r from-emerald-500 to-green-400", badge: "bg-emerald-500/10 text-emerald-400" },
+    { bar: "bg-gradient-to-r from-blue-500 to-cyan-400", badge: "bg-blue-500/10 text-blue-400" },
+    { bar: "bg-gradient-to-r from-indigo-500 to-violet-400", badge: "bg-indigo-500/10 text-indigo-400" },
+  ];
+
+  // When no revenue yet, show placeholder cards
+  const displayLines = lines.length > 0 ? lines : [
+    { label: "Job Completions", amount: 0, count: 0 },
+    { label: "AI Services Sold", amount: 0, count: 0 },
+    { label: "Protocol Fees", amount: 0, count: 0 },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.35, duration: 0.45 }}
+      className="rounded-xl border border-slate-800/60 bg-slate-900/40 overflow-hidden"
+    >
+      <div className="flex items-center gap-2.5 border-b border-slate-800/60 px-5 py-3.5">
+        <Flame className="h-4 w-4 text-emerald-400" />
+        <h3 className="text-sm font-semibold text-white">Revenue Breakdown</h3>
+        <span className="ml-auto rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-mono font-semibold text-emerald-400">
+          {formatUsd(total)} total
+        </span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-slate-800/60">
+        {displayLines.map((line, i) => {
+          const pct = total > 0 ? (line.amount / total) * 100 : 0;
+          const c = colors[i % colors.length];
+          return (
+            <div key={line.label} className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">{line.label}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-mono ${c.badge}`}>
+                  {line.count} txns
+                </span>
+              </div>
+              <p className="font-mono text-xl font-bold text-white">{formatUsd(line.amount)}</p>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-slate-600">
+                  <span>of total</span>
+                  <span className="font-mono">{pct.toFixed(1)}%</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(pct, 100)}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut", delay: 0.4 + i * 0.1 }}
+                    className={`h-full rounded-full ${c.bar}`}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </motion.div>
   );
 }
 
 export default function AgentDashboard() {
-  const { actions, metrics, transactions, connected } = useAgentStream();
+  const { actions, metrics, transactions, profitDetails, connected } = useAgentStream();
   const { ethPrice } = useEthPrice();
   const feedRef = useRef<HTMLDivElement>(null);
 
@@ -236,7 +460,7 @@ export default function AgentDashboard() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-linear-to-br from-blue-500 via-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25">
             <Bot className="h-6 w-6 text-white" />
           </div>
           <div>
@@ -305,10 +529,10 @@ export default function AgentDashboard() {
                     >
                       {/* Timeline spine */}
                       {i < actions.length - 1 && (
-                        <div className="absolute left-[21px] top-9 bottom-0 w-px bg-gradient-to-b from-slate-700/60 to-transparent" />
+                        <div className="absolute left-[21px] top-9 bottom-0 w-px bg-linear-to-b from-slate-700/60 to-transparent" />
                       )}
 
-                      <div className="relative mt-0.5 flex-shrink-0">
+                      <div className="relative mt-0.5 shrink-0">
                         <span
                           className={`block h-3 w-3 rounded-full ${dotColor} ${glow ? `shadow-md ${glow}` : ""} ring-2 ring-slate-900/80`}
                         />
@@ -483,7 +707,7 @@ export default function AgentDashboard() {
             </div>
           </motion.div>
 
-          {/* C. Cost / Revenue Breakdown */}
+          {/* C. Cost / Revenue Breakdown (quick-glance % bars) */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -526,6 +750,38 @@ export default function AgentDashboard() {
           </motion.div>
         </div>
       </div>
+
+      {/* ── P&L + Self-Sufficiency ───────────────────────── */}
+      <div className="flex items-center gap-3 pt-2">
+        <BarChart2 className="h-4 w-4 text-slate-500" />
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Financial Deep Dive</h2>
+        <div className="flex-1 h-px bg-slate-800/60" />
+      </div>
+
+      <PnlPanel details={profitDetails} />
+
+      {/* ── API Cost Tables ──────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <OperationCostTable
+          title="OpenAI API Costs"
+          icon={Zap}
+          lines={profitDetails?.openaiLines ?? []}
+          totalCost={profitDetails?.pnl.openaiCosts ?? 0}
+          accentColor="orange"
+          delay={0.25}
+        />
+        <OperationCostTable
+          title="Gas Costs"
+          icon={Activity}
+          lines={profitDetails?.gasLines ?? []}
+          totalCost={profitDetails?.pnl.gasCosts ?? 0}
+          accentColor="red"
+          delay={0.3}
+        />
+      </div>
+
+      {/* ── Revenue Detail ───────────────────────────────── */}
+      <RevenueDetailPanel details={profitDetails} />
     </div>
   );
 }

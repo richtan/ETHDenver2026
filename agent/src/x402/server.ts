@@ -18,7 +18,14 @@ export async function startServer(orchestrator: JobOrchestrator, agentAddress: s
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
     });
+
+    // Flush immediately so the browser confirms the stream is live
+    res.write(": connected\n\n");
+
+    // Heartbeat every 30s to prevent TCP/proxy timeouts on idle connections
+    const heartbeat = setInterval(() => res.write(": ping\n\n"), 30_000);
 
     const send = (event: string, data: any) => {
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -32,6 +39,7 @@ export async function startServer(orchestrator: JobOrchestrator, agentAddress: s
     orchestrator.on("transaction", onTx);
 
     req.on("close", () => {
+      clearInterval(heartbeat);
       orchestrator.off("action", onAction);
       orchestrator.off("metrics", onMetrics);
       orchestrator.off("transaction", onTx);
