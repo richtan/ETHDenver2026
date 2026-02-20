@@ -14,6 +14,8 @@ import { JOB_MARKETPLACE_ABI } from "../abi/JobMarketplace";
 import { formatEth, ethToUsd } from "../lib/formatEth";
 import { useEthPrice } from "../hooks/useEthPrice";
 import { useMyTasks } from "../hooks/useMyTasks";
+import { useVerificationHistory, type VerificationRecord } from "../hooks/useVerificationHistory";
+import { Star } from "lucide-react";
 
 const TASK_STATUS = {
   0: { label: "Pending", color: "text-slate-400 bg-slate-800/50", icon: Clock },
@@ -46,7 +48,7 @@ type TaskData = {
   rejectionReason: string;
 };
 
-function TaskRow({ taskId }: { taskId: bigint }) {
+function TaskRow({ taskId, bonusRecord }: { taskId: bigint; bonusRecord?: VerificationRecord }) {
   const { ethPrice } = useEthPrice();
   const { data: task, isLoading } = useReadContract({
     address: CONTRACT_ADDRESS,
@@ -121,6 +123,12 @@ function TaskRow({ taskId }: { taskId: bigint }) {
             </span>
           )}
         </span>
+        {parsedTask.status === 4 && bonusRecord && bonusRecord.bonus_wei !== "0" && bonusRecord.bonus_wei !== "" && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400">
+            <Star className="h-3 w-3" />
+            +{(Number(BigInt(bonusRecord.bonus_wei)) / 1e18).toFixed(4)} ETH bonus
+          </span>
+        )}
       </div>
 
       <Link
@@ -147,8 +155,9 @@ const containerVariants = {
 };
 
 export default function MyTasks() {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { taskIds, isLoading } = useMyTasks();
+  const { data: verificationHistory } = useVerificationHistory(address);
 
   const ids = taskIds ?? [];
   const hasTasks = ids.length > 0;
@@ -232,7 +241,11 @@ export default function MyTasks() {
         >
           <AnimatePresence mode="popLayout">
             {ids.map((taskId) => (
-              <TaskRow key={taskId.toString()} taskId={taskId} />
+              <TaskRow
+                key={taskId.toString()}
+                taskId={taskId}
+                bonusRecord={verificationHistory?.find((v) => v.task_id === Number(taskId))}
+              />
             ))}
           </AnimatePresence>
         </motion.div>

@@ -49,6 +49,7 @@ const GAS_OPS = [
   { prefix: "approveTask-", label: "Gas · Approve Task", costPerCall: 0.001 },
   { prefix: "completeJob-", label: "Gas · Complete Job", costPerCall: 0.001 },
   { prefix: "rejectProof-", label: "Gas · Reject Proof", costPerCall: 0.001 },
+  { prefix: "reputation-bonus", label: "Gas · Reputation Bonus", costPerCall: 0.001 },
 ];
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

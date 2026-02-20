@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { type AiTaskResult } from "./types.js";
+import { type AiTaskResult, type VerificationScores, type ReputationTier } from "./types.js";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
@@ -185,4 +185,142 @@ export async function getRecommendedTasks(
 
   scored.sort((a, b) => b.score - a.score);
   return scored;
+}
+
+// ── Reputation System ──────────────────────────────────────────
+
+const REPUTATION_WEIGHTS = { authenticity: 0.30, relevance: 0.25, completeness: 0.25, quality: 0.10, consistency: 0.10 };
+
+export function calculateReputationScore(scores: VerificationScores): number {
+  return scores.authenticity * REPUTATION_WEIGHTS.authenticity
+    + scores.relevance * REPUTATION_WEIGHTS.relevance
+    + scores.completeness * REPUTATION_WEIGHTS.completeness
+    + scores.quality * REPUTATION_WEIGHTS.quality
+    + scores.consistency * REPUTATION_WEIGHTS.consistency;
+}
+
+export function getReputationTier(score: number, tasksCompleted: number): ReputationTier {
+  if (tasksCompleted === 0) return "none";
+  if (score >= 0.90) return "gold";
+  if (score >= 0.80) return "silver";
+  if (score >= 0.70) return "bronze";
+  return "none";
+}
+
+export function calculateBonus(reputationScore: number, tasksCompleted: number, taskRewardWei: bigint): bigint {
+  const tier = getReputationTier(reputationScore, tasksCompleted);
+  const multipliers: Record<ReputationTier, number> = { gold: 10, silver: 5, bronze: 2, none: 0 };
+  const pct = multipliers[tier];
+  if (pct === 0) return 0n;
+  return taskRewardWei * BigInt(pct) / 100n;
+}
+
+export async function recordVerification(
+  address: string, taskId: string, jobId: string,
+  approved: boolean, confidence: number, scores: VerificationScores, bonusWei: string,
+) {
+  if (!supabase) { console.warn("Supabase not configured — skipping recordVerification"); return null; }
+  const { data, error } = await supabase.from("verification_history").insert({
+    wallet_address: address.toLowerCase(),
+    task_id: taskId,
+    job_id: jobId,
+    approved,
+    confidence,
+    authenticity: scores.authenticity,
+    relevance: scores.relevance,
+    completeness: scores.completeness,
+    quality: scores.quality,
+    consistency: scores.consistency,
+    bonus_wei: bonusWei,
+  }).select().single();
+  if (error) { console.error("recordVerification error:", error); return null; }
+  return data;
+}
+
+export async function updateWorkerReputation(address: string, approved: boolean, scores: VerificationScores) {
+  if (!supabase) { console.warn("Supabase not configured — skipping updateWorkerReputation"); return null; }
+  const addr = address.toLowerCase();
+
+  // Fetch current reputation
+  const { data: existing } = await supabase.from("worker_reputation").select("*").eq("wallet_address", addr).single();
+
+  if (!existing) {
+    // First entry
+    const totalCount = 1;
+    const repScore = approved ? calculateReputationScore(scores) : 0;
+    const { data, error } = await supabase.from("worker_reputation").insert({
+      wallet_address: addr,
+      tasks_completed: approved ? 1 : 0,
+      tasks_rejected: approved ? 0 : 1,
+      avg_authenticity: approved ? scores.authenticity : 0,
+      avg_relevance: approved ? scores.relevance : 0,
+      avg_completeness: approved ? scores.completeness : 0,
+      avg_quality: approved ? scores.quality : 0,
+      avg_consistency: approved ? scores.consistency : 0,
+      reputation_score: repScore,
+      total_bonus_earned: "0",
+      updated_at: new Date().toISOString(),
+    }).select().single();
+    if (error) console.error("updateWorkerReputation insert error:", error);
+    return data;
+  }
+
+  // Rolling average update: new_avg = (old_avg * count + new_score) / (count + 1)
+  const oldCount = existing.tasks_completed + existing.tasks_rejected;
+  const newCount = oldCount + 1;
+  const newAvg = (field: keyof VerificationScores) =>
+    approved ? (existing[`avg_${field}`] * oldCount + scores[field]) / newCount
+             : (existing[`avg_${field}`] * oldCount) / newCount; // rejection drags average down
+
+  const avgAuth = newAvg("authenticity");
+  const avgRel = newAvg("relevance");
+  const avgComp = newAvg("completeness");
+  const avgQual = newAvg("quality");
+  const avgCons = newAvg("consistency");
+  const repScore = avgAuth * REPUTATION_WEIGHTS.authenticity
+    + avgRel * REPUTATION_WEIGHTS.relevance
+    + avgComp * REPUTATION_WEIGHTS.completeness
+    + avgQual * REPUTATION_WEIGHTS.quality
+    + avgCons * REPUTATION_WEIGHTS.consistency;
+
+  const { data, error } = await supabase.from("worker_reputation").update({
+    tasks_completed: existing.tasks_completed + (approved ? 1 : 0),
+    tasks_rejected: existing.tasks_rejected + (approved ? 0 : 1),
+    avg_authenticity: avgAuth,
+    avg_relevance: avgRel,
+    avg_completeness: avgComp,
+    avg_quality: avgQual,
+    avg_consistency: avgCons,
+    reputation_score: repScore,
+    updated_at: new Date().toISOString(),
+  }).eq("wallet_address", addr).select().single();
+  if (error) console.error("updateWorkerReputation update error:", error);
+  return data;
+}
+
+export async function addBonusToReputation(address: string, bonusWei: string) {
+  if (!supabase) return;
+  const addr = address.toLowerCase();
+  const { data: existing } = await supabase.from("worker_reputation").select("total_bonus_earned").eq("wallet_address", addr).single();
+  if (!existing) return;
+  const newTotal = (BigInt(existing.total_bonus_earned || "0") + BigInt(bonusWei)).toString();
+  await supabase.from("worker_reputation").update({ total_bonus_earned: newTotal }).eq("wallet_address", addr);
+}
+
+export async function getWorkerReputation(address: string) {
+  if (!supabase) return null;
+  const { data, error } = await supabase.from("worker_reputation").select("*").eq("wallet_address", address.toLowerCase()).single();
+  if (error && error.code !== "PGRST116") console.error("getWorkerReputation error:", error);
+  return data ?? null;
+}
+
+export async function getVerificationHistory(address: string, limit = 20) {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("verification_history")
+    .select("*")
+    .eq("wallet_address", address.toLowerCase())
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) { console.error("getVerificationHistory error:", error); return []; }
+  return data ?? [];
 }

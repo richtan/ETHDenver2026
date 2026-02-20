@@ -14,6 +14,8 @@ import {
   Loader2,
   ExternalLink,
   Plus,
+  Star,
+  TrendingUp,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { CONTRACT_ADDRESS } from '../config/wagmi';
@@ -24,6 +26,9 @@ import { useEthPrice } from '../hooks/useEthPrice';
 import { useAcceptTask } from '../hooks/useAcceptTask';
 import { useSubmitProof } from '../hooks/useSubmitProof';
 import { useUploadProof } from '../hooks/useUploadProof';
+import { useVerificationHistory } from '../hooks/useVerificationHistory';
+import { useWorkerReputation } from '../hooks/useWorkerReputation';
+import { TIER_CONFIG } from '../components/ReputationSection';
 
 const TASK_STATUS = {
   0: { label: 'Pending', color: 'text-slate-400', icon: Clock },
@@ -140,10 +145,22 @@ export default function TaskDetailPage() {
     }
   }, [parsedTask?.rejectionReason, parsedTask?.status]);
 
+  const { data: verificationHistory } = useVerificationHistory(address);
+  const { data: reputation } = useWorkerReputation(address);
+
   const isWorker =
     parsedTask &&
     address &&
     parsedTask.worker.toLowerCase() === address.toLowerCase();
+
+  const verificationRecord = verificationHistory?.find(
+    (v) => v.task_id === Number(taskId)
+  );
+  const bonusWei = verificationRecord?.bonus_wei ?? "0";
+  const hasBonusValue = bonusWei !== "0" && bonusWei !== "";
+  const bonusEth = hasBonusValue
+    ? Number(BigInt(bonusWei)) / 1e18
+    : 0;
   const canAccept =
     parsedTask?.status === 1 && address && !accepting && !confirmingAccept;
   const showProofUpload =
@@ -354,6 +371,12 @@ export default function TaskDetailPage() {
                 )}
               </span>
             </span>
+            {parsedTask.status === 4 && isWorker && hasBonusValue && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400">
+                <Star className="h-3.5 w-3.5" />
+                +{bonusEth.toFixed(4)} ETH bonus
+              </span>
+            )}
             <span
               className={`inline-flex items-center gap-2 ${
                 isExpired ? 'text-red-400/90' : 'text-slate-400'
@@ -363,6 +386,22 @@ export default function TaskDetailPage() {
               {deadlineStr}
             </span>
           </div>
+
+          {parsedTask.status === 2 && isWorker && reputation && (
+            <div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-700/40 bg-slate-800/30 px-3 py-2">
+              <TrendingUp className="h-3.5 w-3.5 text-slate-500" />
+              <span className="text-xs text-slate-500">
+                {reputation.tier !== "none" ? (
+                  <>
+                    Your <span className={TIER_CONFIG[reputation.tier].color}>{TIER_CONFIG[reputation.tier].label}</span> tier earns{" "}
+                    <span className="text-white font-medium">{TIER_CONFIG[reputation.tier].bonus}</span> bonus on approved work
+                  </>
+                ) : (
+                  "High reputation earns up to +10% bonus on approved work"
+                )}
+              </span>
+            </div>
+          )}
 
           {parsedTask.rejectionReason && (
             <motion.div

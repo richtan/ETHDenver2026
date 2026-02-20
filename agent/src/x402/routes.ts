@@ -6,7 +6,7 @@ import { type JobOrchestrator } from "../orchestrator.js";
 import { config, NETWORK } from "../config.js";
 import { type AgentWallet } from "../wallet.js";
 import { clarifyJob } from "../clarifier.js";
-import { getWorkerProfile, setWorkerTags, getAllTaskTags, getRecommendedTasks, getAiTaskResults } from "../supabase.js";
+import { getWorkerProfile, setWorkerTags, getAllTaskTags, getRecommendedTasks, getAiTaskResults, getWorkerReputation, getVerificationHistory, getReputationTier } from "../supabase.js";
 
 const openai = new OpenAI();
 
@@ -146,6 +146,46 @@ export function registerRoutes(app: Express, orchestrator: JobOrchestrator) {
       });
       orchestrator.emitMetrics();
       res.json(JSON.parse(result.choices[0].message.content!));
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Worker Reputation Endpoints ──────────
+
+  app.get("/api/worker/:address/reputation", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isAddress(address)) {
+        res.status(400).json({ error: "Invalid address" });
+        return;
+      }
+      const rep = await getWorkerReputation(address);
+      if (!rep) {
+        res.json({
+          wallet_address: address.toLowerCase(),
+          tasks_completed: 0, tasks_rejected: 0,
+          avg_authenticity: 0, avg_relevance: 0, avg_completeness: 0, avg_quality: 0, avg_consistency: 0,
+          reputation_score: 0, total_bonus_earned: "0",
+          tier: "none" as const,
+        });
+        return;
+      }
+      res.json({ ...rep, tier: getReputationTier(rep.reputation_score, rep.tasks_completed) });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/worker/:address/history", async (req, res) => {
+    try {
+      const { address } = req.params;
+      if (!isAddress(address)) {
+        res.status(400).json({ error: "Invalid address" });
+        return;
+      }
+      const history = await getVerificationHistory(address);
+      res.json(history);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

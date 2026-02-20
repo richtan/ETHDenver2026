@@ -47,6 +47,7 @@ async function main() {
   setRouteWallet(wallet);
 
   const orchestrator = new JobOrchestrator();
+  orchestrator.setWallet(wallet);
 
   await recoverState(orchestrator);
 

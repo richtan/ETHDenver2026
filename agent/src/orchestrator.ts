@@ -12,7 +12,8 @@ import { addTaskOnChain, approveTaskOnChain, completeJobOnChain, rejectProofOnCh
 import { ethToUsd } from "./price-feed.js";
 import { EventEmitter } from "events";
 import { type AgentAction, type AgentTransaction } from "./types.js";
-import { setTaskTags } from "./supabase.js";
+import { setTaskTags, updateWorkerReputation, getWorkerReputation, calculateBonus, recordVerification, addBonusToReputation, getReputationTier } from "./supabase.js";
+import { type AgentWallet } from "./wallet.js";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -25,6 +26,9 @@ export class JobOrchestrator extends EventEmitter {
   private jobTaskCounts = new Map<bigint, number>();
   private recentActions: AgentAction[] = [];
   private recentTransactions: AgentTransaction[] = [];
+  private wallet: AgentWallet | null = null;
+
+  setWallet(w: AgentWallet) { this.wallet = w; }
 
   constructor() {
     super();
@@ -294,6 +298,36 @@ export class JobOrchestrator extends EventEmitter {
         this.emit("transaction", { action: "Approve task + pay worker",
           hash: approveTxHash, amount: formatEther(task.reward), timestamp: Date.now() });
 
+        // ── Reputation + Bonus ──
+        let bonusWei = 0n;
+        try {
+          await updateWorkerReputation(task.worker, true, result.scores);
+          const rep = await getWorkerReputation(task.worker);
+          if (rep) {
+            bonusWei = calculateBonus(rep.reputation_score, rep.tasks_completed, task.reward);
+            if (bonusWei > 0n && this.wallet) {
+              const bonusTxHash = await this.wallet.sendTransaction({
+                to: task.worker as `0x${string}`,
+                value: bonusWei,
+              });
+              const bonusUsd = await ethToUsd(bonusWei);
+              costTracker.logCost({ type: "gas", amount_usd: bonusUsd, details: `reputation-bonus-${taskId}` });
+              await addBonusToReputation(task.worker, bonusWei.toString());
+              const tier = getReputationTier(rep.reputation_score, rep.tasks_completed);
+              this.emit("action", { type: "bonus_paid", jobId: jobId.toString(),
+                taskId: taskId.toString(), worker: task.worker,
+                bonusAmount: formatEther(bonusWei), tier, reputationScore: rep.reputation_score,
+                timestamp: Date.now() });
+              this.emit("transaction", { action: "Reputation bonus",
+                hash: bonusTxHash, amount: formatEther(bonusWei), timestamp: Date.now() });
+            }
+          }
+          await recordVerification(task.worker, taskId.toString(), jobId.toString(),
+            true, result.confidence, result.scores, bonusWei.toString());
+        } catch (err) {
+          console.error(`Reputation/bonus error for task ${taskId}:`, err);
+        }
+
         const totalTasks = this.jobTaskCounts.get(jobId) ?? 0;
         const isLastTask = Number(task.sequenceIndex) === totalTasks - 1;
 
@@ -320,6 +354,15 @@ export class JobOrchestrator extends EventEmitter {
 
         this.emitMetrics();
       } else {
+        // ── Reputation update on rejection ──
+        try {
+          await updateWorkerReputation(task.worker, false, result.scores);
+          await recordVerification(task.worker, taskId.toString(), jobId.toString(),
+            false, result.confidence, result.scores, "0");
+        } catch (err) {
+          console.error(`Reputation update error on rejection for task ${taskId}:`, err);
+        }
+
         const rejectTxHash = await rejectProofOnChain(jobId, taskId, result.suggestion);
         costTracker.logCost({ type: "gas", amount_usd: 0.001, details: `rejectProof-${taskId}` });
 

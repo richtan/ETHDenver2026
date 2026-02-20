@@ -53,7 +53,7 @@ export interface AgentAction {
       | "proof_submitted" | "proof_verified" | "proof_rejected"
       | "worker_paid" | "next_task_opened" | "job_completed"
       | "compute_reimbursed" | "ai_service_sold" | "task_expired" | "job_cancelled"
-      | "ai_task_started" | "ai_task_completed";
+      | "ai_task_started" | "ai_task_completed" | "bonus_paid";
   jobId?: string;
   taskId?: string;
   timestamp: number;
@@ -66,6 +66,8 @@ export interface AgentTransaction {
   amount?: string;
   timestamp: number;
 }
+
+export type ReputationTier = "gold" | "silver" | "bronze" | "none";
 
 export interface Metrics {
   netProfitUsd: number;
