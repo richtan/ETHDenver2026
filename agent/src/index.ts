@@ -55,7 +55,11 @@ async function main() {
 
   await orchestrator.initialize();
 
-  await recoverState(orchestrator);
+  try {
+    await recoverState(orchestrator);
+  } catch (err) {
+    console.error("State recovery failed (continuing without it):", err);
+  }
 
   orchestrator.startListening();
 

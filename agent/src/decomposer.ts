@@ -1,6 +1,6 @@
-import OpenAI from "openai";
-import { formatEther } from "viem";
-import { type TaskPlan } from "./types.js";
+import OpenAI from 'openai';
+import { formatEther } from 'viem';
+import { type TaskPlan } from './types.js';
 
 const openai = new OpenAI();
 
@@ -78,59 +78,79 @@ Precision rules (STRICT):
 
 Return JSON object with shape: { "tasks": [...], "totalWorkerCost": "0.007", "agentProfit": "0.003" }`;
 
-export async function decomposeJob(description: string, budget: bigint): Promise<TaskPlan[]> {
-  if (process.env.MOCK_OPENAI === "true") {
-    const rewardEach = formatEther(budget * 35n / 100n);
+export async function decomposeJob(
+  description: string,
+  budget: bigint,
+): Promise<TaskPlan[]> {
+  console.log('decomposeJob Called');
+  if (process.env.MOCK_OPENAI === 'true') {
+    const rewardEach = formatEther((budget * 35n) / 100n);
     return [
       {
-        description: "Research the product specifications, availability, and pricing",
-        proofRequirements: "N/A - AI executed",
-        reward: "0",
+        description:
+          'Research the product specifications, availability, and pricing',
+        proofRequirements: 'N/A - AI executed',
+        reward: '0',
         deadlineMinutes: 10,
         dependsOnPrevious: false,
-        tags: ["research"],
-        executorType: "ai" as const,
+        tags: ['research'],
+        executorType: 'ai' as const,
       },
       {
-        description: "Design a promotional flyer with product name, tagline, and key features",
-        proofRequirements: "Screenshot of final design as PNG/JPG",
+        description:
+          'Design a promotional flyer with product name, tagline, and key features',
+        proofRequirements: 'Screenshot of final design as PNG/JPG',
         reward: rewardEach,
         deadlineMinutes: 120,
         dependsOnPrevious: true,
-        tags: ["design", "marketing", "graphic-design"],
-        executorType: "human" as const,
+        tags: ['design', 'marketing', 'graphic-design'],
+        executorType: 'human' as const,
       },
       {
-        description: "Print and distribute flyers at the specified locations",
-        proofRequirements: "Photo collage showing flyers posted at multiple locations",
+        description: 'Print and distribute flyers at the specified locations',
+        proofRequirements:
+          'Photo collage showing flyers posted at multiple locations',
         reward: rewardEach,
         deadlineMinutes: 180,
         dependsOnPrevious: true,
-        tags: ["physical-labor", "printing", "marketing"],
-        executorType: "human" as const,
+        tags: ['physical-labor', 'printing', 'marketing'],
+        executorType: 'human' as const,
       },
     ];
   }
 
+  console.log(
+    `[decomposer] Starting decomposition — "${description}" (budget: ${formatEther(budget)} ETH)`,
+  );
+  const t0 = performance.now();
+
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: 'gpt-4o',
     messages: [
-      { role: "system", content: DECOMPOSE_PROMPT },
-      { role: "user", content: `Job: "${description}"\nBudget: ${formatEther(budget)} ETH` },
+      { role: 'system', content: DECOMPOSE_PROMPT },
+      {
+        role: 'user',
+        content: `Job: "${description}"\nBudget: ${formatEther(budget)} ETH`,
+      },
     ],
-    response_format: { type: "json_object" },
+    response_format: { type: 'json_object' },
   });
   const parsed = JSON.parse(response.choices[0].message.content!);
   const tasks = parsed.tasks as TaskPlan[];
 
+  const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+  console.log(
+    `[decomposer] Done in ${elapsed}s — ${tasks.length} tasks (${tasks.filter((t) => t.executorType === 'ai').length} AI, ${tasks.filter((t) => t.executorType === 'human').length} human)`,
+  );
+
   // Validate and normalize AI task fields
   for (const task of tasks) {
     if (!task.executorType) {
-      task.executorType = "human";
+      task.executorType = 'human';
     }
-    if (task.executorType === "ai") {
-      task.reward = "0";
-      task.proofRequirements = "N/A - AI executed";
+    if (task.executorType === 'ai') {
+      task.reward = '0';
+      task.proofRequirements = 'N/A - AI executed';
     }
   }
 

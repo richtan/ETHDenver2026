@@ -21,7 +21,14 @@ import type { AgentAction, AgentTransaction, ProfitDetails, OperationLine, Pinat
 import { truncateAddress, formatUsd } from "../lib/formatEth";
 import { useEthPrice } from "../hooks/useEthPrice";
 
-const EXPLORER = "https://basescan.org/tx/";
+const EXPLORER_MAP: Record<string, string> = {
+  localhost: "https://basescan.org/tx/",
+  "base-sepolia": "https://sepolia.basescan.org/tx/",
+  base: "https://basescan.org/tx/",
+};
+const EXPLORER =
+  EXPLORER_MAP[import.meta.env.VITE_CHAIN || "localhost"] ??
+  "https://basescan.org/tx/";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useAccount } from "wagmi";
-import { motion, AnimatePresence } from "framer-motion";
-import ReactMarkdown from "react-markdown";
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useAccount } from 'wagmi';
+import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
 import {
   Briefcase,
   ChevronDown,
@@ -15,15 +15,15 @@ import {
   ExternalLink,
   ImageIcon,
   Zap,
-} from "lucide-react";
-import { useClientJobs } from "../hooks/useClientJobs";
-import { useJob } from "../hooks/useJob";
-import { useAiTasks, type AiTaskResult } from "../hooks/useAiTasks";
-import { formatEth, ethToUsd } from "../lib/formatEth";
-import { useEthPrice } from "../hooks/useEthPrice";
-import { ipfsToHttp } from "../config/pinata";
+} from 'lucide-react';
+import { useClientJobs } from '../hooks/useClientJobs';
+import { useJob } from '../hooks/useJob';
+import { useAiTasks, type AiTaskResult } from '../hooks/useAiTasks';
+import { formatEth, ethToUsd } from '../lib/formatEth';
+import { useEthPrice } from '../hooks/useEthPrice';
+import { ipfsToHttp } from '../config/pinata';
 
-const JOB_STATUS = ["Created", "InProgress", "Completed", "Cancelled"] as const;
+const JOB_STATUS = ['Created', 'InProgress', 'Completed', 'Cancelled'] as const;
 
 type TaskData = {
   id: bigint;
@@ -62,12 +62,12 @@ function getTaskIcon(status: number) {
 }
 
 const TASK_STATUS_LABEL: Record<number, string> = {
-  0: "Pending",
-  1: "Open",
-  2: "In Progress",
-  3: "Verifying",
-  4: "Completed",
-  5: "Cancelled",
+  0: 'Pending',
+  1: 'Open',
+  2: 'In Progress',
+  3: 'Verifying',
+  4: 'Completed',
+  5: 'Cancelled',
 };
 
 function ProofImageGallery({ proofURI }: { proofURI: string }) {
@@ -83,8 +83,13 @@ function ProofImageGallery({ proofURI }: { proofURI: string }) {
         const res = await fetch(httpUrl);
         const text = await res.text();
         const json = JSON.parse(text);
-        if (json.images && Array.isArray(json.images) && json.images.length > 0) {
-          if (!cancelled) setImageUrls(json.images.map((uri: string) => ipfsToHttp(uri)));
+        if (
+          json.images &&
+          Array.isArray(json.images) &&
+          json.images.length > 0
+        ) {
+          if (!cancelled)
+            setImageUrls(json.images.map((uri: string) => ipfsToHttp(uri)));
         } else {
           if (!cancelled) setImageUrls([httpUrl]);
         }
@@ -99,7 +104,9 @@ function ProofImageGallery({ proofURI }: { proofURI: string }) {
         setLoading(false);
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [proofURI]);
 
   if (loading) {
@@ -114,7 +121,7 @@ function ProofImageGallery({ proofURI }: { proofURI: string }) {
   if (error || imageUrls.length === 0) {
     return (
       <div className="py-2 text-xs text-slate-500">
-        Unable to load proof.{" "}
+        Unable to load proof.{' '}
         <a
           href={ipfsToHttp(proofURI)}
           target="_blank"
@@ -142,7 +149,7 @@ function ProofImageGallery({ proofURI }: { proofURI: string }) {
             alt={`Proof ${i + 1}`}
             className="h-24 w-full object-cover transition group-hover:scale-105"
             onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
+              (e.target as HTMLImageElement).style.display = 'none';
             }}
           />
           <div className="absolute inset-0 flex items-center justify-center bg-slate-900/0 transition group-hover:bg-slate-900/30">
@@ -167,10 +174,13 @@ function TaskResultRow({ task }: { task: TaskData }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           {(() => {
-            const lines = task.description.split("\n");
-            const firstLine = lines[0] ?? "";
-            const rest = lines.slice(1).join("\n").trimStart()
-              .replace(/---\s*AI Research Findings\s*---/gi, "Notes:");
+            const lines = task.description.split('\n');
+            const firstLine = lines[0] ?? '';
+            const rest = lines
+              .slice(1)
+              .join('\n')
+              .trimStart()
+              .replace(/---\s*AI Research Findings\s*---/gi, 'Notes:');
             return (
               <div className="text-sm text-slate-300 prose prose-invert prose-sm max-w-none">
                 <p className="mb-3 text-slate-300">{firstLine}</p>
@@ -178,15 +188,43 @@ function TaskResultRow({ task }: { task: TaskData }) {
                   <ReactMarkdown
                     components={{
                       p: ({ children }) => <p className="m-0">{children}</p>,
-                      ul: ({ children }) => <ul className="my-1 ml-4 list-disc">{children}</ul>,
-                      ol: ({ children }) => <ol className="my-1 ml-4 list-decimal">{children}</ol>,
-                      li: ({ children }) => <li className="my-0.5">{children}</li>,
-                      strong: ({ children }) => <strong className="font-semibold text-slate-200">{children}</strong>,
-                      em: ({ children }) => <em className="italic">{children}</em>,
-                      code: ({ children }) => <code className="rounded bg-slate-800/50 px-1 py-0.5 text-xs font-mono text-purple-300">{children}</code>,
-                      h1: ({ children }) => <h1 className="mt-2 mb-1 text-base font-semibold">{children}</h1>,
-                      h2: ({ children }) => <h2 className="mt-2 mb-1 text-sm font-semibold">{children}</h2>,
-                      h3: ({ children }) => <h3 className="mt-1 mb-0.5 text-sm font-semibold">{children}</h3>,
+                      ul: ({ children }) => (
+                        <ul className="my-1 ml-4 list-disc">{children}</ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="my-1 ml-4 list-decimal">{children}</ol>
+                      ),
+                      li: ({ children }) => (
+                        <li className="my-0.5">{children}</li>
+                      ),
+                      strong: ({ children }) => (
+                        <strong className="font-semibold text-slate-200">
+                          {children}
+                        </strong>
+                      ),
+                      em: ({ children }) => (
+                        <em className="italic">{children}</em>
+                      ),
+                      code: ({ children }) => (
+                        <code className="rounded bg-slate-800/50 px-1 py-0.5 text-xs font-mono text-purple-300">
+                          {children}
+                        </code>
+                      ),
+                      h1: ({ children }) => (
+                        <h1 className="mt-2 mb-1 text-base font-semibold">
+                          {children}
+                        </h1>
+                      ),
+                      h2: ({ children }) => (
+                        <h2 className="mt-2 mb-1 text-sm font-semibold">
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="mt-1 mb-0.5 text-sm font-semibold">
+                          {children}
+                        </h3>
+                      ),
                     }}
                   >
                     {rest}
@@ -212,7 +250,7 @@ function TaskResultRow({ task }: { task: TaskData }) {
             )}
             {!isCompleted && (
               <span className="text-[10px] text-slate-500">
-                {TASK_STATUS_LABEL[task.status] ?? "Unknown"}
+                {TASK_STATUS_LABEL[task.status] ?? 'Unknown'}
               </span>
             )}
           </div>
@@ -223,12 +261,24 @@ function TaskResultRow({ task }: { task: TaskData }) {
             <ReactMarkdown
               components={{
                 p: ({ children }) => <p className="m-0">{children}</p>,
-                ul: ({ children }) => <ul className="my-1 ml-4 list-disc">{children}</ul>,
-                ol: ({ children }) => <ol className="my-1 ml-4 list-decimal">{children}</ol>,
+                ul: ({ children }) => (
+                  <ul className="my-1 ml-4 list-disc">{children}</ul>
+                ),
+                ol: ({ children }) => (
+                  <ol className="my-1 ml-4 list-decimal">{children}</ol>
+                ),
                 li: ({ children }) => <li className="my-0.5">{children}</li>,
-                strong: ({ children }) => <strong className="font-semibold text-slate-400">{children}</strong>,
+                strong: ({ children }) => (
+                  <strong className="font-semibold text-slate-400">
+                    {children}
+                  </strong>
+                ),
                 em: ({ children }) => <em className="italic">{children}</em>,
-                code: ({ children }) => <code className="rounded bg-slate-800/50 px-1 py-0.5 text-[10px] font-mono text-purple-300">{children}</code>,
+                code: ({ children }) => (
+                  <code className="rounded bg-slate-800/50 px-1 py-0.5 text-[10px] font-mono text-purple-300">
+                    {children}
+                  </code>
+                ),
               }}
             >
               {task.proofRequirements}
@@ -242,12 +292,14 @@ function TaskResultRow({ task }: { task: TaskData }) {
           </p>
         )}
 
-        {isCompleted && hasProof && <ProofImageGallery proofURI={task.proofURI} />}
+        {isCompleted && hasProof && (
+          <ProofImageGallery proofURI={task.proofURI} />
+        )}
 
         {isCompleted && (
           <Link
             to={`/work/${task.id.toString()}`}
-            state={{ from: "/jobs" }}
+            state={{ from: '/jobs' }}
             className="mt-2 inline-flex items-center gap-1 text-xs text-slate-500 transition hover:text-slate-300"
           >
             View full details
@@ -261,8 +313,8 @@ function TaskResultRow({ task }: { task: TaskData }) {
 
 function AiTaskRow({ task }: { task: AiTaskResult }) {
   const [showResult, setShowResult] = useState(false);
-  const isCompleted = task.status === "completed";
-  const isFailed = task.status === "failed";
+  const isCompleted = task.status === 'completed';
+  const isFailed = task.status === 'failed';
 
   return (
     <div className="relative flex items-start gap-3 py-2">
@@ -289,7 +341,7 @@ function AiTaskRow({ task }: { task: AiTaskResult }) {
               onClick={() => setShowResult(!showResult)}
               className="mt-1 text-xs text-purple-400 hover:text-purple-300 transition"
             >
-              {showResult ? "Hide findings" : "Show findings"}
+              {showResult ? 'Hide findings' : 'Show findings'}
             </button>
             {showResult && (
               <div className="mt-2 rounded-lg bg-purple-500/5 border border-purple-500/20 p-3 text-xs text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto">
@@ -331,24 +383,31 @@ function ExpandableJobCard({ jobId }: { jobId: bigint }) {
 
   const jobData = Array.isArray(job)
     ? { description: job[2], totalBudget: job[3], status: job[7] as number }
-    : { description: job.description, totalBudget: job.totalBudget, status: job.status as number };
+    : {
+        description: job.description,
+        totalBudget: job.totalBudget,
+        status: job.status as number,
+      };
 
   const rawTasks = (tasks ?? []) as unknown as TaskData[];
   const taskList = [...rawTasks].sort(
     (a, b) => Number(a.sequenceIndex ?? 0) - Number(b.sequenceIndex ?? 0),
   );
-  const aiCompletedCount = aiTasks.filter((t) => t.status === "completed").length;
+  const aiCompletedCount = aiTasks.filter(
+    (t) => t.status === 'completed',
+  ).length;
   const humanCompletedCount = taskList.filter((t) => t.status === 4).length;
   const completedCount = aiCompletedCount + humanCompletedCount;
   const totalCount = taskList.length + aiTasks.length;
-  const statusLabel = JOB_STATUS[Math.min(jobData.status, 3)] ?? "Unknown";
+  const statusLabel = JOB_STATUS[Math.min(jobData.status, 3)] ?? 'Unknown';
 
-  const statusBadgeClass = {
-    0: "bg-slate-600/30 text-slate-300 border-slate-600/50",
-    1: "bg-amber-500/20 text-amber-400 border-amber-500/40",
-    2: "bg-emerald-500/20 text-emerald-400 border-emerald-500/40",
-    3: "bg-red-500/20 text-red-400 border-red-500/40",
-  }[jobData.status] ?? "bg-slate-600/30 text-slate-300";
+  const statusBadgeClass =
+    {
+      0: 'bg-slate-600/30 text-slate-300 border-slate-600/50',
+      1: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
+      2: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40',
+      3: 'bg-red-500/20 text-red-400 border-red-500/40',
+    }[jobData.status] ?? 'bg-slate-600/30 text-slate-300';
 
   const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
@@ -393,7 +452,7 @@ function ExpandableJobCard({ jobId }: { jobId: bigint }) {
                 className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500"
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPct}%` }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
               />
             </div>
           )}
@@ -412,7 +471,9 @@ function ExpandableJobCard({ jobId }: { jobId: bigint }) {
         <div className="border-t border-slate-800/60 px-5 py-4">
           <div className="flex items-center gap-3 text-blue-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">AI agent is analyzing and decomposing your job...</span>
+            <span className="text-sm">
+              AI agent is analyzing and decomposing your job...
+            </span>
           </div>
         </div>
       )}
@@ -422,9 +483,9 @@ function ExpandableJobCard({ jobId }: { jobId: bigint }) {
         {expanded && (aiTasks.length > 0 || taskList.length > 0) && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
+            animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
             <div className="border-t border-slate-800/60 px-5 py-4">
@@ -451,7 +512,7 @@ function ExpandableJobCard({ jobId }: { jobId: bigint }) {
               {taskList.length > 0 && (
                 <>
                   <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">
-                    {aiTasks.length > 0 ? "Human Tasks" : "Tasks"}
+                    {aiTasks.length > 0 ? 'Human Tasks' : 'Tasks'}
                   </p>
                   <div className="space-y-1">
                     {taskList.map((task, i) => (
@@ -503,7 +564,7 @@ export default function MyJobs() {
           </h1>
           {isConnected && !isLoading && (
             <span className="rounded-full border border-slate-700/60 bg-slate-800/50 px-3 py-1 text-sm font-medium text-slate-300">
-              {ids.length} {ids.length === 1 ? "job" : "jobs"}
+              {ids.length} {ids.length === 1 ? 'job' : 'jobs'}
             </span>
           )}
         </div>

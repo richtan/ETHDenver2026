@@ -1,8 +1,11 @@
+import { type Log } from "viem";
 import { publicClient } from "./client.js";
 import { config } from "./config.js";
 import { JOB_MARKETPLACE_ABI } from "./abi.js";
 import { completeJobOnChain } from "./actions/marketplace.js";
 import { type JobOrchestrator } from "./orchestrator.js";
+
+const MAX_BLOCK_RANGE = 9_999n;
 
 interface JobState {
   description: string;
@@ -20,14 +23,32 @@ interface TaskState {
   completed: boolean;
 }
 
+async function getContractEventsChunked() {
+  const latestBlock = await publicClient.getBlockNumber();
+  const from = config.deploymentBlock;
+  const allEvents: Log[] = [];
+
+  for (let start = from; start <= latestBlock; start += MAX_BLOCK_RANGE + 1n) {
+    const end = start + MAX_BLOCK_RANGE > latestBlock
+      ? latestBlock
+      : start + MAX_BLOCK_RANGE;
+
+    const chunk = await publicClient.getContractEvents({
+      address: config.contractAddress,
+      abi: JOB_MARKETPLACE_ABI,
+      fromBlock: start,
+      toBlock: end,
+    });
+    allEvents.push(...(chunk as Log[]));
+  }
+
+  return allEvents;
+}
+
 export async function recoverState(orchestrator: JobOrchestrator) {
   console.log("Recovering state from on-chain events...");
 
-  const events = await publicClient.getContractEvents({
-    address: config.contractAddress,
-    abi: JOB_MARKETPLACE_ABI,
-    fromBlock: config.deploymentBlock,
-  });
+  const events = await getContractEventsChunked();
 
   const jobStore = new Map<bigint, JobState>();
   const taskStore = new Map<bigint, TaskState>();
