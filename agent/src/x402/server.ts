@@ -1,10 +1,10 @@
-import express from "express";
+import express, { type Express } from "express";
 import cors from "cors";
 import { type JobOrchestrator } from "../orchestrator.js";
 import { registerRoutes } from "./routes.js";
 import { applyX402 } from "./x402-middleware.js";
 
-export async function startServer(orchestrator: JobOrchestrator, agentAddress: string) {
+export async function startServer(orchestrator: JobOrchestrator, agentAddress: string): Promise<Express> {
   const app = express();
   app.use(cors());
   app.use(express.json());
@@ -48,4 +48,6 @@ export async function startServer(orchestrator: JobOrchestrator, agentAddress: s
 
   const port = process.env.PORT || 3001;
   app.listen(port, () => console.log(`Agent API on port ${port}`));
+
+  return app;
 }

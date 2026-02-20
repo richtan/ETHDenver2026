@@ -45,8 +45,34 @@ export function registerRoutes(app: Express, orchestrator: JobOrchestrator) {
         res.status(400).json({ error: "description and budget are required" });
         return;
       }
-      const result = await clarifyJob(description, budget, conversation || []);
+      const convo = conversation || [];
+      const result = await clarifyJob(description, budget, convo);
+      const round = convo.length;
+      costTracker.logCost({ type: "openai", amount_usd: 0.02, details: `clarify-job-${round}` });
+      orchestrator.emit("action", {
+        type: "clarification_round", round, ready: result.ready,
+        description, timestamp: Date.now(),
+      });
+      orchestrator.emitMetrics();
       res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/pinata-upload", (req, res) => {
+    try {
+      const fileCount = Math.max(1, Number(req.body.fileCount) || 1);
+      const totalBytes = Math.max(0, Number(req.body.totalBytes) || 0);
+      const bytesPerFile = fileCount > 0 ? Math.floor(totalBytes / fileCount) : 0;
+      for (let i = 0; i < fileCount; i++) {
+        costTracker.logPinataPinCost(bytesPerFile);
+      }
+      orchestrator.emit("action", {
+        type: "ipfs_upload", fileCount, totalBytes, timestamp: Date.now(),
+      });
+      orchestrator.emitMetrics();
+      res.json({ logged: fileCount, pinataUsage: costTracker.getPinataUsage() });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

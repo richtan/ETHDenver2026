@@ -12,15 +12,8 @@ import { addTaskOnChain, approveTaskOnChain, completeJobOnChain, rejectProofOnCh
 import { ethToUsd } from "./price-feed.js";
 import { EventEmitter } from "events";
 import { type AgentAction, type AgentTransaction } from "./types.js";
-import { setTaskTags, updateWorkerReputation, getWorkerReputation, calculateBonus, recordVerification, addBonusToReputation, getReputationTier } from "./supabase.js";
+import { setTaskTags, updateWorkerReputation, getWorkerReputation, calculateBonus, recordVerification, addBonusToReputation, getReputationTier, insertAgentAction, insertAgentTransaction, getRecentAgentActions, getRecentAgentTransactions } from "./supabase.js";
 import { type AgentWallet } from "./wallet.js";
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ACTIONS_PATH = join(__dirname, "..", "recent-actions.json");
-const TRANSACTIONS_PATH = join(__dirname, "..", "recent-transactions.json");
 
 export class JobOrchestrator extends EventEmitter {
   private jobTaskCounts = new Map<bigint, number>();
@@ -30,19 +23,14 @@ export class JobOrchestrator extends EventEmitter {
 
   setWallet(w: AgentWallet) { this.wallet = w; }
 
-  constructor() {
-    super();
-    // Restore persisted actions and transactions so dashboard shows history after restart
+  async initialize() {
     try {
-      if (existsSync(ACTIONS_PATH)) {
-        this.recentActions = JSON.parse(readFileSync(ACTIONS_PATH, "utf-8"));
-      }
-    } catch { /* start fresh if file is corrupt */ }
-    try {
-      if (existsSync(TRANSACTIONS_PATH)) {
-        this.recentTransactions = JSON.parse(readFileSync(TRANSACTIONS_PATH, "utf-8"));
-      }
-    } catch { /* start fresh if file is corrupt */ }
+      this.recentActions = await getRecentAgentActions(200);
+      this.recentTransactions = await getRecentAgentTransactions(200);
+      console.log(`Loaded ${this.recentActions.length} actions, ${this.recentTransactions.length} transactions from Supabase`);
+    } catch (err) {
+      console.warn("Could not load agent history from Supabase:", err);
+    }
   }
 
   setJobTaskCount(jobId: bigint, count: number) {
@@ -55,11 +43,11 @@ export class JobOrchestrator extends EventEmitter {
   override emit(event: string | symbol, ...args: any[]): boolean {
     if (event === "action" && args[0]) {
       this.recentActions = [args[0], ...this.recentActions].slice(0, 200);
-      try { writeFileSync(ACTIONS_PATH, JSON.stringify(this.recentActions)); } catch { /* non-fatal */ }
+      insertAgentAction(args[0]).catch(e => console.error("Failed to persist action:", e));
     }
     if (event === "transaction" && args[0]) {
       this.recentTransactions = [args[0], ...this.recentTransactions].slice(0, 200);
-      try { writeFileSync(TRANSACTIONS_PATH, JSON.stringify(this.recentTransactions)); } catch { /* non-fatal */ }
+      insertAgentTransaction(args[0]).catch(e => console.error("Failed to persist transaction:", e));
     }
     return super.emit(event, ...args);
   }

@@ -16,6 +16,14 @@ export interface AgentTransaction {
   timestamp: number;
 }
 
+export interface PinataUsage {
+  bytesUsed: number;
+  fileCount: number;
+  plan: string;
+  storageLimitBytes: number;
+  overLimit: boolean;
+}
+
 export interface Metrics {
   netProfitUsd: number;
   totalRevenueUsd: number;
@@ -23,8 +31,9 @@ export interface Metrics {
   jobsCompleted: number;
   jobsInProgress: number;
   sustainabilityRatio: number;
-  costBreakdown: { openai: number; gas: number; workers: number };
+  costBreakdown: { openai: number; gas: number; pinata: number; workers: number };
   revenueBreakdown: { jobProfits: number; aiServices: number; fees: number };
+  pinataUsage: PinataUsage;
 }
 
 export interface OperationLine {
@@ -37,6 +46,7 @@ export interface OperationLine {
 export interface ProfitDetails {
   openaiLines: OperationLine[];
   gasLines: OperationLine[];
+  pinataLines: OperationLine[];
   revenueLines: { label: string; amount: number; count: number }[];
   autonomyMetrics: {
     costCoverageRatio: number;
@@ -45,11 +55,13 @@ export interface ProfitDetails {
     profitMarginPct: number;
     openaiAsCostPct: number;
     gasAsCostPct: number;
+    pinataAsCostPct: number;
   };
   pnl: {
     totalRevenue: number;
     openaiCosts: number;
     gasCosts: number;
+    pinataCosts: number;
     workerCosts: number;
     netProfit: number;
   };

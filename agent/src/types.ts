@@ -69,6 +69,14 @@ export interface AgentTransaction {
 
 export type ReputationTier = "gold" | "silver" | "bronze" | "none";
 
+export interface PinataUsage {
+  bytesUsed: number;
+  fileCount: number;
+  plan: string;
+  storageLimitBytes: number;
+  overLimit: boolean;
+}
+
 export interface Metrics {
   netProfitUsd: number;
   totalRevenueUsd: number;
@@ -76,6 +84,7 @@ export interface Metrics {
   jobsCompleted: number;
   jobsInProgress: number;
   sustainabilityRatio: number;
-  costBreakdown: { openai: number; gas: number; workers: number };
+  costBreakdown: { openai: number; gas: number; pinata: number; workers: number };
   revenueBreakdown: { jobProfits: number; aiServices: number; fees: number };
+  pinataUsage: PinataUsage;
 }

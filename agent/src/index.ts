@@ -4,10 +4,12 @@ import { publicClient } from "./client.js";
 import { createAgentWallet } from "./wallet.js";
 import { setAgentWallet } from "./actions/marketplace.js";
 import { setRouteWallet } from "./x402/routes.js";
+import { costTracker } from "./cost-tracker.js";
 import { JobOrchestrator } from "./orchestrator.js";
 import { recoverState } from "./recovery.js";
 import { startScheduler } from "./scheduler.js";
 import { startServer } from "./x402/server.js";
+import { mountMcpServer } from "./mcp/server.js";
 import { JOB_MARKETPLACE_ABI } from "./abi.js";
 import { formatEther } from "viem";
 
@@ -46,14 +48,19 @@ async function main() {
   setAgentWallet(wallet);
   setRouteWallet(wallet);
 
+  await costTracker.initialize();
+
   const orchestrator = new JobOrchestrator();
   orchestrator.setWallet(wallet);
+
+  await orchestrator.initialize();
 
   await recoverState(orchestrator);
 
   orchestrator.startListening();
 
-  await startServer(orchestrator, wallet.address);
+  const app = await startServer(orchestrator, wallet.address);
+  mountMcpServer(app, orchestrator);
 
   startScheduler(wallet, orchestrator);
 

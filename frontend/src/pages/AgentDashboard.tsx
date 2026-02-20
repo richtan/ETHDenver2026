@@ -14,13 +14,21 @@ import {
   BarChart2,
   Cpu,
   Flame,
+  HardDrive,
 } from "lucide-react";
 import { useAgentStream } from "../hooks/useAgentStream";
-import type { AgentAction, AgentTransaction, ProfitDetails, OperationLine } from "../hooks/useAgentStream";
+import type { AgentAction, AgentTransaction, ProfitDetails, OperationLine, PinataUsage } from "../hooks/useAgentStream";
 import { truncateAddress, formatUsd } from "../lib/formatEth";
 import { useEthPrice } from "../hooks/useEthPrice";
 
 const EXPLORER = "https://basescan.org/tx/";
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
 
 function timeAgo(ts: number): string {
   const diff = Math.max(0, Math.floor((Date.now() - ts) / 1000));
@@ -44,6 +52,8 @@ const ACTION_COLORS: Record<string, string> = {
   job_completed: "bg-purple-400",
   compute_reimbursed: "bg-orange-400",
   ai_service_sold: "bg-teal-400",
+  clarification_round: "bg-sky-400",
+  ipfs_upload: "bg-pink-400",
 };
 
 const ACTION_GLOW: Record<string, string> = {
@@ -54,6 +64,8 @@ const ACTION_GLOW: Record<string, string> = {
   proof_rejected: "shadow-red-400/40",
   worker_paid: "shadow-amber-400/40",
   job_completed: "shadow-purple-400/40",
+  clarification_round: "shadow-sky-400/40",
+  ipfs_upload: "shadow-pink-400/40",
 };
 
 function ethToUsdStr(ethAmount: string | undefined, ethPrice: number | null): string {
@@ -88,6 +100,13 @@ function actionMessage(a: AgentAction, ethPrice: number | null): string {
       return `Reimbursed $${a.amount_usd ?? "?"} compute`;
     case "ai_service_sold":
       return `AI service sold: ${a.service ?? "Unknown"}`;
+    case "clarification_round":
+      return `Clarifying job requirements (round ${(a.round ?? 0) + 1})${a.ready ? " — ready to create" : ""}`;
+    case "ipfs_upload": {
+      const fc = a.fileCount ?? 1;
+      const sizeStr = a.totalBytes ? ` — ${formatBytes(a.totalBytes)}` : "";
+      return `Uploaded proof to IPFS (${fc} file${fc > 1 ? "s" : ""}${sizeStr})`;
+    }
     default:
       return a.type.replace(/_/g, " ");
   }
@@ -227,6 +246,7 @@ function PnlPanel({ details }: { details: ProfitDetails | null }) {
             <PnlRow label="Total Revenue" amount={pnl.totalRevenue} sign="+" />
             <PnlRow label="OpenAI API Costs" amount={pnl.openaiCosts} sign="-" />
             <PnlRow label="Gas Costs" amount={pnl.gasCosts} sign="-" />
+            <PnlRow label="Pinata IPFS Costs" amount={pnl.pinataCosts} sign="-" />
             {pnl.workerCosts > 0 && <PnlRow label="Worker Costs" amount={pnl.workerCosts} sign="-" />}
             <PnlRow label="Net Profit" amount={pnl.netProfit} sign="=" isTotal />
           </div>
@@ -266,6 +286,10 @@ function PnlPanel({ details }: { details: ProfitDetails | null }) {
             label="Gas % of Costs"
             value={am ? `${am.gasAsCostPct.toFixed(1)}%` : na}
           />
+          <AutonMetric
+            label="Pinata % of Costs"
+            value={am ? `${am.pinataAsCostPct.toFixed(1)}%` : na}
+          />
         </div>
       </div>
     </motion.div>
@@ -286,12 +310,15 @@ function OperationCostTable({
   icon: React.ElementType;
   lines: OperationLine[];
   totalCost: number;
-  accentColor: "orange" | "red";
+  accentColor: "orange" | "red" | "pink";
   delay?: number;
 }) {
-  const headerColor = accentColor === "orange" ? "text-orange-400" : "text-red-400";
-  const badgeColor = accentColor === "orange" ? "bg-orange-500/10 text-orange-400" : "bg-red-500/10 text-red-400";
-  const barColor = accentColor === "orange" ? "bg-gradient-to-r from-orange-500 to-amber-400" : "bg-gradient-to-r from-red-500 to-rose-400";
+  const colorMap = {
+    orange: { header: "text-orange-400", badge: "bg-orange-500/10 text-orange-400", bar: "bg-gradient-to-r from-orange-500 to-amber-400" },
+    red:    { header: "text-red-400",    badge: "bg-red-500/10 text-red-400",       bar: "bg-gradient-to-r from-red-500 to-rose-400" },
+    pink:   { header: "text-pink-400",   badge: "bg-pink-500/10 text-pink-400",     bar: "bg-gradient-to-r from-pink-500 to-fuchsia-400" },
+  };
+  const { header: headerColor, badge: badgeColor, bar: barColor } = colorMap[accentColor];
 
   return (
     <motion.div
@@ -359,6 +386,75 @@ function OperationCostTable({
           </table>
         </div>
       )}
+    </motion.div>
+  );
+}
+
+// ── Pinata Usage Gauge ────────────────────────────────────────────
+
+function PinataUsageGauge({ usage }: { usage: PinataUsage | undefined }) {
+  if (!usage) return null;
+  const pct = usage.storageLimitBytes > 0
+    ? Math.min((usage.bytesUsed / usage.storageLimitBytes) * 100, 100)
+    : 0;
+  const planLabel = usage.plan.charAt(0).toUpperCase() + usage.plan.slice(1);
+  const barColor = usage.overLimit
+    ? "bg-gradient-to-r from-red-500 to-orange-400"
+    : pct > 80
+      ? "bg-gradient-to-r from-amber-500 to-yellow-400"
+      : "bg-gradient-to-r from-pink-500 to-fuchsia-400";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.4, duration: 0.45 }}
+      className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-5"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <HardDrive className="h-4 w-4 text-pink-400" />
+          <h3 className="text-sm font-semibold text-white">Pinata IPFS Storage</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-pink-500/10 px-2.5 py-0.5 text-xs font-mono font-semibold text-pink-400">
+            {planLabel} Plan
+          </span>
+          {usage.overLimit && (
+            <span className="rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-semibold text-red-400">
+              OVER LIMIT
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between">
+          <span className="font-mono text-lg font-bold text-white">
+            {formatBytes(usage.bytesUsed)}
+          </span>
+          <span className="text-xs text-slate-500">
+            of {formatBytes(usage.storageLimitBytes)}
+          </span>
+        </div>
+        <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${pct}%` }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className={`h-full rounded-full ${barColor}`}
+          />
+        </div>
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>{usage.fileCount} file{usage.fileCount !== 1 ? "s" : ""} pinned</span>
+          <span className="font-mono">{pct.toFixed(1)}%</span>
+        </div>
+        {usage.overLimit && (
+          <p className="text-xs text-amber-400 mt-1">
+            Free tier limit exceeded — uploads now billed at Picnic tier rates ($0.02/pin)
+          </p>
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -441,7 +537,7 @@ export default function AgentDashboard() {
   }, [actions.length]);
 
   const costTotal = metrics
-    ? metrics.costBreakdown.openai + metrics.costBreakdown.gas + metrics.costBreakdown.workers
+    ? metrics.costBreakdown.openai + metrics.costBreakdown.gas + metrics.costBreakdown.pinata + metrics.costBreakdown.workers
     : 0;
   const revTotal = metrics
     ? metrics.revenueBreakdown.jobProfits + metrics.revenueBreakdown.aiServices + metrics.revenueBreakdown.fees
@@ -724,6 +820,7 @@ export default function AgentDashboard() {
                 <>
                   <BreakdownBar label="OpenAI" pct={costPct(metrics.costBreakdown.openai)} color="bg-gradient-to-r from-orange-500 to-amber-400" />
                   <BreakdownBar label="Gas" pct={costPct(metrics.costBreakdown.gas)} color="bg-gradient-to-r from-red-500 to-rose-400" />
+                  <BreakdownBar label="Pinata" pct={costPct(metrics.costBreakdown.pinata)} color="bg-gradient-to-r from-pink-500 to-fuchsia-400" />
                   <BreakdownBar label="Workers" pct={costPct(metrics.costBreakdown.workers)} color="bg-gradient-to-r from-violet-500 to-purple-400" />
                 </>
               ) : (
@@ -761,7 +858,7 @@ export default function AgentDashboard() {
       <PnlPanel details={profitDetails} />
 
       {/* ── API Cost Tables ──────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <OperationCostTable
           title="OpenAI API Costs"
           icon={Zap}
@@ -778,7 +875,18 @@ export default function AgentDashboard() {
           accentColor="red"
           delay={0.3}
         />
+        <OperationCostTable
+          title="Pinata IPFS Costs"
+          icon={HardDrive}
+          lines={profitDetails?.pinataLines ?? []}
+          totalCost={profitDetails?.pnl.pinataCosts ?? 0}
+          accentColor="pink"
+          delay={0.35}
+        />
       </div>
+
+      {/* ── Pinata Storage Usage ─────────────────────────── */}
+      <PinataUsageGauge usage={metrics?.pinataUsage} />
 
       {/* ── Revenue Detail ───────────────────────────────── */}
       <RevenueDetailPanel details={profitDetails} />

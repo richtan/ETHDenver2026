@@ -1,3 +1,5 @@
+import { costTracker } from "./cost-tracker.js";
+
 const rawGateway = process.env.PINATA_GATEWAY || "https://gateway.pinata.cloud";
 const GATEWAY = rawGateway.startsWith("http") ? rawGateway : `https://${rawGateway}`;
 
@@ -12,5 +14,6 @@ export async function fetchIpfsJson(ipfsUri: string): Promise<unknown> {
   const url = ipfsToHttpGateway(ipfsUri);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch IPFS JSON: ${res.status}`);
+  costTracker.logPinataGatewayCost();
   return res.json();
 }
