@@ -1,5 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
-import { type AiTaskResult } from "./types.js";
+import { type AiTaskResult, type AgentAction, type AgentTransaction } from "./types.js";
+
+interface CostEntry { type: "openai" | "gas"; amount_usd: number; details: string; timestamp: number; }
+interface RevenueEntry { type: "job_profit" | "ai_service" | "fee"; amount_usd: number; timestamp: number; }
+interface ReimbursementEntry { amount_usd: number; txHash: string; timestamp: number; }
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
@@ -112,6 +116,103 @@ export async function getAiTaskResults(jobId: string): Promise<AiTaskResult[]> {
   const results = (data ?? []) as AiTaskResult[];
   // Ensure we only return results for this job (handles DB type coercion edge cases)
   return results.filter((r) => String(r.job_id).trim() === normalizedJobId);
+}
+
+export async function insertAgentAction(action: AgentAction): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("agent_actions").insert({
+    type: action.type,
+    job_id: action.jobId ?? null,
+    task_id: action.taskId ?? null,
+    timestamp: action.timestamp,
+    payload: action,
+  });
+  if (error) console.error("insertAgentAction error:", error);
+}
+
+export async function insertAgentTransaction(tx: AgentTransaction): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("agent_transactions").insert({
+    action: tx.action,
+    hash: tx.hash ?? null,
+    amount: tx.amount ?? null,
+    timestamp: tx.timestamp,
+  });
+  if (error) console.error("insertAgentTransaction error:", error);
+}
+
+export async function getRecentAgentActions(limit = 200): Promise<AgentAction[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("agent_actions")
+    .select("payload")
+    .order("timestamp", { ascending: false })
+    .limit(limit);
+  if (error) { console.error("getRecentAgentActions error:", error); return []; }
+  return (data ?? []).map(r => r.payload as AgentAction);
+}
+
+export async function getRecentAgentTransactions(limit = 200): Promise<AgentTransaction[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("agent_transactions")
+    .select("action, hash, amount, timestamp")
+    .order("timestamp", { ascending: false })
+    .limit(limit);
+  if (error) { console.error("getRecentAgentTransactions error:", error); return []; }
+  return (data ?? []) as AgentTransaction[];
+}
+
+export async function insertCostEntry(entry: CostEntry): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("cost_entries").insert(entry);
+  if (error) console.error("insertCostEntry error:", error);
+}
+
+export async function insertRevenueEntry(entry: RevenueEntry): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("revenue_entries").insert(entry);
+  if (error) console.error("insertRevenueEntry error:", error);
+}
+
+export async function insertReimbursementEntry(entry: ReimbursementEntry): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("reimbursement_entries").insert({
+    amount_usd: entry.amount_usd,
+    tx_hash: entry.txHash,
+    timestamp: entry.timestamp,
+  });
+  if (error) console.error("insertReimbursementEntry error:", error);
+}
+
+export async function getAllCostEntries(): Promise<CostEntry[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("cost_entries")
+    .select("type, amount_usd, details, timestamp")
+    .order("timestamp", { ascending: true });
+  if (error) { console.error("getAllCostEntries error:", error); return []; }
+  return (data ?? []) as CostEntry[];
+}
+
+export async function getAllRevenueEntries(): Promise<RevenueEntry[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("revenue_entries")
+    .select("type, amount_usd, timestamp")
+    .order("timestamp", { ascending: true });
+  if (error) { console.error("getAllRevenueEntries error:", error); return []; }
+  return (data ?? []) as RevenueEntry[];
+}
+
+export async function getAllReimbursementEntries(): Promise<ReimbursementEntry[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("reimbursement_entries")
+    .select("amount_usd, tx_hash, timestamp")
+    .order("timestamp", { ascending: true });
+  if (error) { console.error("getAllReimbursementEntries error:", error); return []; }
+  return (data ?? []).map(r => ({ amount_usd: r.amount_usd, txHash: r.tx_hash, timestamp: r.timestamp }));
 }
 
 function fuzzyTagMatch(workerTag: string, taskTag: string): boolean {

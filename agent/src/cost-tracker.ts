@@ -1,7 +1,8 @@
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
 import { type Metrics } from "./types.js";
+import {
+  insertCostEntry, insertRevenueEntry, insertReimbursementEntry,
+  getAllCostEntries, getAllRevenueEntries, getAllReimbursementEntries,
+} from "./supabase.js";
 
 interface CostEntry { type: "openai" | "gas"; amount_usd: number; details: string; timestamp: number; }
 interface RevenueEntry { type: "job_profit" | "ai_service" | "fee"; amount_usd: number; timestamp: number; }
@@ -51,35 +52,32 @@ const GAS_OPS = [
   { prefix: "rejectProof-", label: "Gas · Reject Proof", costPerCall: 0.001 },
 ];
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PERSISTENCE_PATH = join(__dirname, "..", "cost-tracker.json");
-
 class CostTracker {
   private costs: CostEntry[] = [];
   private revenues: RevenueEntry[] = [];
   private reimbursements: ReimbursementEntry[] = [];
 
-  constructor() {
-    if (existsSync(PERSISTENCE_PATH)) {
-      try {
-        const data = JSON.parse(readFileSync(PERSISTENCE_PATH, "utf-8"));
-        this.costs = data.costs || [];
-        this.revenues = data.revenues || [];
-        this.reimbursements = data.reimbursements || [];
-      } catch {
-        // Corrupted file, start fresh
-      }
+  async initialize() {
+    try {
+      this.costs = await getAllCostEntries();
+      this.revenues = await getAllRevenueEntries();
+      this.reimbursements = await getAllReimbursementEntries();
+      console.log(`Loaded ${this.costs.length} costs, ${this.revenues.length} revenues from Supabase`);
+    } catch (err) {
+      console.warn("Could not load cost tracker from Supabase:", err);
     }
   }
 
   logCost(entry: Omit<CostEntry, "timestamp">) {
-    this.costs.push({ ...entry, timestamp: Date.now() });
-    this.persist();
+    const full = { ...entry, timestamp: Date.now() };
+    this.costs.push(full);
+    insertCostEntry(full).catch(e => console.error("Failed to persist cost:", e));
   }
 
   logRevenue(entry: Omit<RevenueEntry, "timestamp">) {
-    this.revenues.push({ ...entry, timestamp: Date.now() });
-    this.persist();
+    const full = { ...entry, timestamp: Date.now() };
+    this.revenues.push(full);
+    insertRevenueEntry(full).catch(e => console.error("Failed to persist revenue:", e));
   }
 
   getUnreimbursedOffchainCosts(): number {
@@ -91,8 +89,9 @@ class CostTracker {
   }
 
   markReimbursed(amount: number, txHash: string) {
-    this.reimbursements.push({ amount_usd: amount, txHash, timestamp: Date.now() });
-    this.persist();
+    const entry = { amount_usd: amount, txHash, timestamp: Date.now() };
+    this.reimbursements.push(entry);
+    insertReimbursementEntry(entry).catch(e => console.error("Failed to persist reimbursement:", e));
   }
 
   getMetricsSnapshot(): Metrics {
@@ -138,7 +137,6 @@ class CostTracker {
         openaiLines.push({ label: op.label, calls: matched.length, costPerCall: op.costPerCall, totalCost: matched.reduce((s, c) => s + c.amount_usd, 0) });
       }
     }
-    // Unmatched OpenAI costs → "Other"
     const otherOpenai = openaiCosts.filter((_, i) => !matchedOpenaiIds.has(i));
     if (otherOpenai.length > 0) {
       const total = otherOpenai.reduce((s, c) => s + c.amount_usd, 0);
@@ -189,16 +187,6 @@ class CostTracker {
       },
       pnl: { totalRevenue, openaiCosts: totalOpenai, gasCosts: totalGas, workerCosts: 0, netProfit },
     };
-  }
-
-  private persist() {
-    try {
-      writeFileSync(PERSISTENCE_PATH, JSON.stringify({
-        costs: this.costs, revenues: this.revenues, reimbursements: this.reimbursements,
-      }, null, 2));
-    } catch (err) {
-      console.error("Failed to persist cost tracker:", err);
-    }
   }
 }
 

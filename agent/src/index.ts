@@ -4,6 +4,7 @@ import { publicClient } from "./client.js";
 import { createAgentWallet } from "./wallet.js";
 import { setAgentWallet } from "./actions/marketplace.js";
 import { setRouteWallet } from "./x402/routes.js";
+import { costTracker } from "./cost-tracker.js";
 import { JobOrchestrator } from "./orchestrator.js";
 import { recoverState } from "./recovery.js";
 import { startScheduler } from "./scheduler.js";
@@ -46,7 +47,11 @@ async function main() {
   setAgentWallet(wallet);
   setRouteWallet(wallet);
 
+  await costTracker.initialize();
+
   const orchestrator = new JobOrchestrator();
+
+  await orchestrator.initialize();
 
   await recoverState(orchestrator);
 
