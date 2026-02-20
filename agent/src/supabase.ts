@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { type AiTaskResult, type AgentAction, type AgentTransaction } from "./types.js";
 
-interface CostEntry { type: "openai" | "gas"; amount_usd: number; details: string; timestamp: number; }
+interface CostEntry { type: "openai" | "gas" | "pinata"; amount_usd: number; details: string; timestamp: number; }
 interface RevenueEntry { type: "job_profit" | "ai_service" | "fee"; amount_usd: number; timestamp: number; }
 interface ReimbursementEntry { amount_usd: number; txHash: string; timestamp: number; }
 
