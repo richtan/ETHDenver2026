@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Activity,
@@ -14,9 +14,12 @@ import {
   Cpu,
   Flame,
   HardDrive,
+  Code2,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useAgentStream } from "../hooks/useAgentStream";
-import type { AgentAction, ProfitDetails, OperationLine, PinataUsage } from "../hooks/useAgentStream";
+import type { AgentAction, AgentConfig, ProfitDetails, OperationLine, PinataUsage } from "../hooks/useAgentStream";
 import { truncateAddress, formatUsd } from "../lib/formatEth";
 import { useEthPrice } from "../hooks/useEthPrice";
 import { Card, CardHeader, CardBody } from "../components/ui/card";
@@ -497,8 +500,86 @@ function RevenueDetailPanel({ details }: { details: ProfitDetails | null }) {
   );
 }
 
+function BuilderCodeCard({ config: cfg }: { config: AgentConfig | null }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyCode = useCallback(() => {
+    if (!cfg?.builderCode) return;
+    navigator.clipboard.writeText(cfg.builderCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [cfg?.builderCode]);
+
+  const networkLabel: Record<string, string> = {
+    localhost: "Localhost",
+    "base-sepolia": "Base Sepolia",
+    base: "Base Mainnet",
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.55, duration: 0.45 }}
+    >
+      <Card>
+        <CardBody className="space-y-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Code2 className="h-3.5 w-3.5 text-cyan-400" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              ERC-8021 Builder Code
+            </h3>
+            {cfg && (
+              <Badge className="ml-auto" variant={cfg.erc8021Enabled ? "success" : "warning"}>
+                {cfg.erc8021Enabled ? "Active" : "Disabled"}
+              </Badge>
+            )}
+          </div>
+
+          {cfg ? (
+            <div className="space-y-2.5">
+              {cfg.builderCode ? (
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 truncate rounded-lg bg-zinc-800/60 px-3 py-2 font-mono text-sm text-cyan-300 border border-cyan-500/20">
+                    {cfg.builderCode}
+                  </code>
+                  <button
+                    onClick={copyCode}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-light text-zinc-400 transition-colors hover:text-white hover:border-cyan-500/40"
+                  >
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-600 italic">No builder code configured</p>
+              )}
+
+              <div className="flex items-center gap-3 text-xs text-zinc-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                  {networkLabel[cfg.network] ?? cfg.network}
+                </span>
+                <span className="font-mono text-zinc-600">
+                  {cfg.contractAddress
+                    ? `${cfg.contractAddress.slice(0, 6)}…${cfg.contractAddress.slice(-4)}`
+                    : "—"}
+                </span>
+                {cfg.x402Enabled && (
+                  <Badge variant="purple">x402</Badge>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-zinc-600 py-2">Awaiting agent config…</p>
+          )}
+        </CardBody>
+      </Card>
+    </motion.div>
+  );
+}
+
 export default function AgentDashboard() {
-  const { actions, metrics, transactions, profitDetails, connected } = useAgentStream();
+  const { actions, metrics, transactions, profitDetails, agentConfig, connected } = useAgentStream();
   const { ethPrice } = useEthPrice();
   const feedRef = useRef<HTMLDivElement>(null);
 
@@ -678,6 +759,9 @@ export default function AgentDashboard() {
               )}
             </Card>
           </motion.div>
+
+          {/* Builder Code */}
+          <BuilderCodeCard config={agentConfig} />
 
           {/* Transaction History */}
           <motion.div

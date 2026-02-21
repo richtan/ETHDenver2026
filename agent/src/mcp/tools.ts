@@ -1,6 +1,6 @@
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { formatEther } from "viem";
+import { formatEther, parseEther, decodeEventLog } from "viem";
 import { type JobOrchestrator } from "../orchestrator.js";
 import { publicClient } from "../client.js";
 import { config } from "../config.js";
@@ -9,6 +9,9 @@ import { clarifyJob } from "../clarifier.js";
 import { readJobFromContract, readTaskFromContract } from "../contract-reads.js";
 import { getAiTaskResults, getWorkerReputation, getReputationTier, getVerificationHistory } from "../supabase.js";
 import { costTracker } from "../cost-tracker.js";
+import { createJobOnChain } from "../actions/marketplace.js";
+
+export type OrchestratorRef = { current: JobOrchestrator | null };
 
 /** Serialize any value, converting BigInts to strings */
 function serialize(obj: unknown): string {
@@ -28,7 +31,7 @@ function errorResult(err: unknown) {
   };
 }
 
-export function registerTools(server: McpServer, orchestrator: JobOrchestrator) {
+export function registerTools(server: McpServer, orchestratorRef: OrchestratorRef) {
   // 1. clarify_job
   server.tool(
     "clarify_job",
@@ -51,7 +54,47 @@ export function registerTools(server: McpServer, orchestrator: JobOrchestrator) 
     },
   );
 
-  // 2. get_job_status
+  // 2. create_job
+  server.tool(
+    "create_job",
+    "Create a new job on-chain with a description and ETH budget",
+    {
+      description: z.string().describe("Job description"),
+      budget: z.string().describe("Budget in ETH (e.g. '0.01')"),
+    },
+    async ({ description, budget }) => {
+      try {
+        const budgetWei = parseEther(budget);
+        const txHash = await createJobOnChain(description, budgetWei);
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+        let jobId: string | undefined;
+        for (const log of receipt.logs) {
+          try {
+            const decoded = decodeEventLog({
+              abi: JOB_MARKETPLACE_ABI,
+              data: log.data,
+              topics: log.topics,
+            });
+            if (decoded.eventName === "JobCreated") {
+              jobId = ((decoded.args as any).jobId as bigint).toString();
+              break;
+            }
+          } catch { /* not our event */ }
+        }
+
+        return textResult({
+          txHash,
+          blockNumber: receipt.blockNumber.toString(),
+          jobId: jobId ?? "check transaction receipt",
+          budget,
+        });
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // 3. get_job_status
   server.tool(
     "get_job_status",
     "Get on-chain job details by job ID",
@@ -192,7 +235,10 @@ export function registerTools(server: McpServer, orchestrator: JobOrchestrator) 
     { limit: z.number().default(50).describe("Max actions to return") },
     async ({ limit }) => {
       try {
-        const actions = orchestrator.getRecentActions().slice(0, limit);
+        if (!orchestratorRef.current) {
+          return errorResult("Agent is still initializing. Please try again shortly.");
+        }
+        const actions = orchestratorRef.current.getRecentActions().slice(0, limit);
         return textResult(actions);
       } catch (err) {
         return errorResult(err);

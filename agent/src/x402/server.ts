@@ -1,53 +1,53 @@
-import express, { type Express } from "express";
-import cors from "cors";
-import { type JobOrchestrator } from "../orchestrator.js";
-import { registerRoutes } from "./routes.js";
-import { applyX402 } from "./x402-middleware.js";
+import express, { type Express } from 'express';
+import cors from 'cors';
+import { type JobOrchestrator } from '../orchestrator.js';
+import { registerRoutes } from './routes.js';
+import { applyX402 } from './x402-middleware.js';
 
-export async function startServer(orchestrator: JobOrchestrator, agentAddress: string): Promise<Express> {
+export function createApp(): Express {
   const app = express();
   app.use(cors());
   app.use(express.json());
+  return app;
+}
 
+export async function registerAllRoutes(
+  app: Express,
+  orchestrator: JobOrchestrator,
+  agentAddress: string,
+): Promise<void> {
   await applyX402(app, agentAddress);
 
   registerRoutes(app, orchestrator);
 
-  app.get("/api/stream", (req, res) => {
+  app.get('/api/stream', (req, res) => {
     res.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-      "X-Accel-Buffering": "no",
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
     });
 
-    // Flush immediately so the browser confirms the stream is live
-    res.write(": connected\n\n");
+    res.write(': connected\n\n');
 
-    // Heartbeat every 30s to prevent TCP/proxy timeouts on idle connections
-    const heartbeat = setInterval(() => res.write(": ping\n\n"), 30_000);
+    const heartbeat = setInterval(() => res.write(': ping\n\n'), 30_000);
 
     const send = (event: string, data: any) => {
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     };
 
-    const onAction = (action: any) => send("action", action);
-    const onMetrics = (metrics: any) => send("metrics", metrics);
-    const onTx = (tx: any) => send("transaction", tx);
-    orchestrator.on("action", onAction);
-    orchestrator.on("metrics", onMetrics);
-    orchestrator.on("transaction", onTx);
+    const onAction = (action: any) => send('action', action);
+    const onMetrics = (metrics: any) => send('metrics', metrics);
+    const onTx = (tx: any) => send('transaction', tx);
+    orchestrator.on('action', onAction);
+    orchestrator.on('metrics', onMetrics);
+    orchestrator.on('transaction', onTx);
 
-    req.on("close", () => {
+    req.on('close', () => {
       clearInterval(heartbeat);
-      orchestrator.off("action", onAction);
-      orchestrator.off("metrics", onMetrics);
-      orchestrator.off("transaction", onTx);
+      orchestrator.off('action', onAction);
+      orchestrator.off('metrics', onMetrics);
+      orchestrator.off('transaction', onTx);
     });
   });
-
-  const port = process.env.PORT || 3001;
-  app.listen(port, () => console.log(`Agent API on port ${port}`));
-
-  return app;
 }

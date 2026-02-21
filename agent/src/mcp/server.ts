@@ -1,18 +1,17 @@
 import { type Express } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { registerTools } from "./tools.js";
+import { registerTools, type OrchestratorRef } from "./tools.js";
 import { registerResources } from "./resources.js";
-import { type JobOrchestrator } from "../orchestrator.js";
 
-export function mountMcpServer(app: Express, orchestrator: JobOrchestrator) {
+export function mountMcpServer(app: Express, orchestratorRef: OrchestratorRef) {
   const mcpServer = new McpServer({
     name: "taskmaster-agent",
     version: "1.0.0",
   });
 
-  registerTools(mcpServer, orchestrator);
-  registerResources(mcpServer, orchestrator);
+  registerTools(mcpServer, orchestratorRef);
+  registerResources(mcpServer, orchestratorRef);
 
   const sessions = new Map<string, StreamableHTTPServerTransport>();
 

@@ -1,6 +1,6 @@
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { type JobOrchestrator } from "../orchestrator.js";
+import { type OrchestratorRef } from "./tools.js";
 import { readJobFromContract } from "../contract-reads.js";
 import { getWorkerReputation, getReputationTier } from "../supabase.js";
 import { costTracker } from "../cost-tracker.js";
@@ -12,7 +12,7 @@ function serialize(obj: unknown): string {
   );
 }
 
-export function registerResources(server: McpServer, orchestrator: JobOrchestrator) {
+export function registerResources(server: McpServer, orchestratorRef: OrchestratorRef) {
   // Static: agent metrics
   server.resource(
     "agent-metrics",
@@ -36,7 +36,7 @@ export function registerResources(server: McpServer, orchestrator: JobOrchestrat
       contents: [{
         uri: "taskmaster://actions",
         mimeType: "application/json",
-        text: serialize(orchestrator.getRecentActions()),
+        text: serialize(orchestratorRef.current?.getRecentActions() ?? []),
       }],
     }),
   );

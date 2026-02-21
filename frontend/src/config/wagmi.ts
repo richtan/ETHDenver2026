@@ -41,7 +41,7 @@ export const wagmiConfig = createConfig({
   chains: [activeChain],
   pollingInterval: 4_000,
   transports: {
-    [activeChain.id]: http(),
+    [activeChain.id]: http(import.meta.env.VITE_RPC_URL || undefined),
   },
 });
 

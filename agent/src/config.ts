@@ -34,7 +34,7 @@ const configs: Record<Network, NetworkConfig> = {
     contractAddress: process.env.CONTRACT_ADDRESS as Address,
     deploymentBlock: 0n,
     walletMode: 'anvil',
-    erc8021Enabled: false,
+    erc8021Enabled: !!process.env.BUILDER_CODE,
     x402Enabled: false,
     reimbursementEnabled: false,
     priceFeedMode: 'fixed',

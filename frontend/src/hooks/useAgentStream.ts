@@ -67,11 +67,21 @@ export interface ProfitDetails {
   };
 }
 
+export interface AgentConfig {
+  network: string;
+  contractAddress: string;
+  erc8021Enabled: boolean;
+  builderCode: string | null;
+  x402Enabled: boolean;
+  reimbursementEnabled: boolean;
+}
+
 export function useAgentStream() {
   const [actions, setActions] = useState<AgentAction[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [transactions, setTransactions] = useState<AgentTransaction[]>([]);
   const [profitDetails, setProfitDetails] = useState<ProfitDetails | null>(null);
+  const [agentConfig, setAgentConfig] = useState<AgentConfig | null>(null);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -80,16 +90,18 @@ export function useAgentStream() {
     es.onopen = async () => {
       setConnected(true);
       try {
-        const [actionsRes, txRes, metricsRes, profitRes] = await Promise.all([
+        const [actionsRes, txRes, metricsRes, profitRes, configRes] = await Promise.all([
           fetch(`${AGENT_API_URL}/api/actions`).then(r => r.json()),
           fetch(`${AGENT_API_URL}/api/transactions`).then(r => r.json()),
           fetch(`${AGENT_API_URL}/api/metrics`).then(r => r.json()),
           fetch(`${AGENT_API_URL}/api/profit-details`).then(r => r.json()),
+          fetch(`${AGENT_API_URL}/api/config`).then(r => r.json()),
         ]);
         setActions(actionsRes);
         setTransactions(txRes);
         setMetrics(metricsRes);
         setProfitDetails(profitRes);
+        setAgentConfig(configRes);
       } catch { /* Initial load may fail if agent not ready */ }
     };
     es.onerror = () => setConnected(false);
@@ -112,5 +124,5 @@ export function useAgentStream() {
     return () => es.close();
   }, []);
 
-  return { actions, metrics, transactions, profitDetails, connected };
+  return { actions, metrics, transactions, profitDetails, agentConfig, connected };
 }

@@ -118,6 +118,18 @@ export function registerRoutes(app: Express, orchestrator: JobOrchestrator) {
     }
   });
 
+  app.get('/api/config', (_req, res) => {
+    const builderCode = process.env.BUILDER_CODE || null;
+    res.json({
+      network: NETWORK,
+      contractAddress: config.contractAddress,
+      erc8021Enabled: config.erc8021Enabled,
+      builderCode: builderCode || null,
+      x402Enabled: config.x402Enabled,
+      reimbursementEnabled: config.reimbursementEnabled,
+    });
+  });
+
   app.get('/api/metrics', (_req, res) => {
     res.json(costTracker.getMetricsSnapshot());
   });

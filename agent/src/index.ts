@@ -8,8 +8,9 @@ import { costTracker } from "./cost-tracker.js";
 import { JobOrchestrator } from "./orchestrator.js";
 import { recoverState } from "./recovery.js";
 import { startScheduler } from "./scheduler.js";
-import { startServer } from "./x402/server.js";
+import { createApp, registerAllRoutes } from "./x402/server.js";
 import { mountMcpServer } from "./mcp/server.js";
+import { type OrchestratorRef } from "./mcp/tools.js";
 import { JOB_MARKETPLACE_ABI } from "./abi.js";
 import { formatEther } from "viem";
 
@@ -19,6 +20,15 @@ async function main() {
   if (!config.contractAddress) {
     throw new Error("CONTRACT_ADDRESS env var is required");
   }
+
+  // Start HTTP server and MCP endpoint immediately so external clients
+  // (like Cursor's MCP client) can connect while the agent initializes.
+  const app = createApp();
+  const orchestratorRef: OrchestratorRef = { current: null };
+  mountMcpServer(app, orchestratorRef);
+
+  const port = process.env.PORT || 3001;
+  app.listen(port, () => console.log(`Agent API on port ${port} (initializing...)`));
 
   const wallet = await createAgentWallet();
   console.log(`Agent wallet: ${wallet.address}`);
@@ -63,8 +73,11 @@ async function main() {
 
   orchestrator.startListening();
 
-  const app = await startServer(orchestrator, wallet.address);
-  mountMcpServer(app, orchestrator);
+  // Wire up the orchestrator ref so MCP tools become fully functional
+  orchestratorRef.current = orchestrator;
+
+  // Register REST routes and SSE stream (these need the wallet + orchestrator)
+  await registerAllRoutes(app, orchestrator, wallet.address);
 
   startScheduler(wallet, orchestrator);
 

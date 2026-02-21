@@ -25,6 +25,10 @@ async function writeContract(functionName: string, args: readonly unknown[], val
   });
 }
 
+export async function createJobOnChain(description: string, budget: bigint): Promise<Hash> {
+  return writeContract("createJob", [description], budget);
+}
+
 export async function addTaskOnChain(jobId: bigint, task: ParsedTask, _index: number): Promise<Hash> {
   return writeContract("addTask", [
     jobId, task.description, task.proofRequirements,
