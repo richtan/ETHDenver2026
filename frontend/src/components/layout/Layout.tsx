@@ -1,6 +1,6 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, useDisconnect } from "wagmi";
+import { useDisconnect } from "wagmi";
 import { useState } from "react";
 import { Briefcase, Hammer, LayoutDashboard, User, Plus, ChevronDown } from "lucide-react";
 import { WalletModal } from "../WalletModal";
