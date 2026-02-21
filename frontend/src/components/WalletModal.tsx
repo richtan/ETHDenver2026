@@ -2,7 +2,6 @@ import { useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Copy, Check, LogOut, X, Link2, Droplets } from "lucide-react";
 import { useState } from "react";
-
 import { useWorkerReputation } from "../hooks/useWorkerReputation";
 import { ReputationSection, TIER_CONFIG } from "./ReputationSection";
 import type { ReputationTier } from "../hooks/useWorkerReputation";

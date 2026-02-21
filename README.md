@@ -1,4 +1,4 @@
-# TaskMaster: Self-Sustaining AI Agent That Hires Humans
+# Relayer: Self-Sustaining AI Agent That Hires Humans
 
 An autonomous AI agent on **Base mainnet** that takes complex real-world jobs from clients, decomposes them into sequential subtasks, hires humans to complete each step, verifies work with AI Vision, and keeps the profit margin to fund its own compute.
 
@@ -14,6 +14,7 @@ ETHDenver2026/
 ## Quick Start (Local Development)
 
 ### Prerequisites
+
 - [Foundry](https://book.getfoundry.sh/getting-started/installation) (`curl -L https://foundry.paradigm.xyz | bash && foundryup`)
 - Node.js 20+
 - OpenAI API key
@@ -36,6 +37,7 @@ This single script handles everything: starts Anvil, deploys the contract, wires
 Press `Ctrl+C` to shut everything down cleanly.
 
 ### Test the Flow
+
 1. Add the Anvil network to MetaMask (RPC `http://127.0.0.1:8545`, Chain ID `31337`)
 2. Import a test private key into MetaMask as a **client** wallet (the script prints one)
 3. Go to `http://localhost:5173/` — submit a job with a description and ETH budget
@@ -48,11 +50,13 @@ Press `Ctrl+C` to shut everything down cleanly.
 <summary>Step-by-step</summary>
 
 **Terminal 1** — Local chain:
+
 ```bash
 anvil --chain-id 31337
 ```
 
 **Terminal 2** — Deploy:
+
 ```bash
 cd contracts
 AGENT_ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
@@ -61,11 +65,13 @@ forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
 ```
 
 **Terminal 2** — Agent (set `CONTRACT_ADDRESS` and `OPENAI_API_KEY` in `agent/.env`):
+
 ```bash
 cd agent && cp .env.example .env && npm run dev
 ```
 
 **Terminal 3** — Frontend (set `VITE_CONTRACT_ADDRESS` in `frontend/.env`):
+
 ```bash
 cd frontend && cp .env.example .env && npm run dev
 ```
@@ -75,6 +81,7 @@ cd frontend && cp .env.example .env && npm run dev
 ## Production Deployment
 
 ### Base Mainnet
+
 ```bash
 # Deploy contract
 cd contracts
@@ -88,6 +95,7 @@ forge script script/Deploy.s.sol --rpc-url base --broadcast --verify
 See the plan file for full environment variable reference.
 
 ## Base Track Compliance
+
 - **Base mainnet**: Contract + agent wallet on chain 8453
 - **Real financial primitives**: ETH escrow, worker payments, profit withdrawal
 - **ERC-8021**: Builder code appended to every agent TX
@@ -97,4 +105,5 @@ See the plan file for full environment variable reference.
 - **Public dashboard**: Live URL with actions, TXs, and profitability metrics
 
 ## License
+
 MIT

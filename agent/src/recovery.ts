@@ -1,4 +1,3 @@
-import { type Log } from "viem";
 import { publicClient } from "./client.js";
 import { config } from "./config.js";
 import { JOB_MARKETPLACE_ABI } from "./abi.js";
@@ -23,10 +22,12 @@ interface TaskState {
   completed: boolean;
 }
 
+type ContractEvent = Awaited<ReturnType<typeof publicClient.getContractEvents<typeof JOB_MARKETPLACE_ABI>>>[number];
+
 async function getContractEventsChunked() {
   const latestBlock = await publicClient.getBlockNumber();
   const from = config.deploymentBlock;
-  const allEvents: Log[] = [];
+  const allEvents: ContractEvent[] = [];
 
   for (let start = from; start <= latestBlock; start += MAX_BLOCK_RANGE + 1n) {
     const end = start + MAX_BLOCK_RANGE > latestBlock
@@ -39,7 +40,7 @@ async function getContractEventsChunked() {
       fromBlock: start,
       toBlock: end,
     });
-    allEvents.push(...(chunk as Log[]));
+    allEvents.push(...chunk);
   }
 
   return allEvents;
