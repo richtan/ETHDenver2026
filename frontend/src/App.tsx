@@ -28,7 +28,7 @@ export default function App() {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme({ accentColor: "#2563eb", borderRadius: "medium" })}>
+        <RainbowKitProvider theme={darkTheme({ accentColor: "#1657f5", borderRadius: "small" })}>
           <BalanceRefresher />
           <BrowserRouter>
             <Routes>

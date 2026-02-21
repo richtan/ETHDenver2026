@@ -33,7 +33,7 @@ const wallets = hasWalletConnect
 
 const connectors = connectorsForWallets(
   [{ groupName: "Connect", wallets }],
-  { appName: "TaskMaster", projectId: projectId || "unused" },
+  { appName: "Relayer", projectId: projectId || "unused" },
 );
 
 export const wagmiConfig = createConfig({

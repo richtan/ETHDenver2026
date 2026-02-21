@@ -2,44 +2,8 @@ import { Outlet, NavLink } from "react-router-dom";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useDisconnect } from "wagmi";
 import { useState } from "react";
-import { Bot, Briefcase, Hammer, LayoutDashboard, User, Droplets, Plus, ChevronDown } from "lucide-react";
-import { AGENT_API_URL } from "../../config/wagmi";
+import { Briefcase, Hammer, LayoutDashboard, User, Plus, ChevronDown } from "lucide-react";
 import { WalletModal } from "../WalletModal";
-
-const IS_LOCAL = import.meta.env.VITE_CHAIN === "localhost";
-
-function FaucetButton() {
-  const { address, isConnected } = useAccount();
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
-
-  if (!IS_LOCAL || !isConnected) return null;
-
-  const drip = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${AGENT_API_URL}/api/faucet`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address }),
-      });
-      if (res.ok) setSent(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <button
-      onClick={drip}
-      disabled={loading || sent}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/20 transition-all disabled:opacity-50"
-    >
-      <Droplets className="h-3.5 w-3.5" />
-      {sent ? "10 ETH sent!" : loading ? "Sending..." : "Get Test ETH"}
-    </button>
-  );
-}
 
 function CustomWalletButton() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -55,7 +19,7 @@ function CustomWalletButton() {
             {!connected ? (
               <button
                 onClick={openConnectModal}
-                className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-blue-500/20 transition hover:from-blue-500 hover:to-indigo-500"
+                className="h-9 rounded-xl bg-primary px-4 text-[13px] font-medium text-white shadow-sm shadow-primary/20 transition hover:bg-primary-dark"
               >
                 Connect Wallet
               </button>
@@ -65,14 +29,14 @@ function CustomWalletButton() {
                   {chain.unsupported ? (
                     <button
                       onClick={openChainModal}
-                      className="rounded-lg bg-red-500/20 px-3 py-2 text-xs font-medium text-red-400 border border-red-500/30"
+                      className="rounded-xl bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400 border border-red-500/20"
                     >
                       Wrong network
                     </button>
                   ) : (
                     <button
                       onClick={openChainModal}
-                      className="flex items-center gap-1.5 rounded-lg border border-slate-700/60 bg-slate-800/50 px-2.5 py-2 text-xs text-slate-300 transition hover:bg-slate-800 hover:border-slate-600"
+                      className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 py-2 text-xs text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200"
                     >
                       {chain.iconUrl && (
                         <img src={chain.iconUrl} alt={chain.name ?? ""} className="h-4 w-4 rounded-full" />
@@ -81,11 +45,13 @@ function CustomWalletButton() {
                   )}
                   <button
                     onClick={() => setModalOpen(!modalOpen)}
-                    className="flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-800/50 px-3 py-2 text-sm text-white transition hover:bg-slate-800 hover:border-slate-600"
+                    className="flex items-center gap-2.5 h-9 rounded-xl border border-border bg-card px-3.5 text-sm transition hover:border-zinc-700 hover:bg-card-hover"
                   >
-                    <span className="text-xs text-slate-400">{account.balanceFormatted ? `${Number(account.balanceFormatted).toFixed(4)} ${account.balanceSymbol}` : ""}</span>
-                    <span className="font-medium">{account.displayName}</span>
-                    <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${modalOpen ? "rotate-180" : ""}`} />
+                    <span className="text-[11px] font-mono text-zinc-500">
+                      {account.balanceFormatted ? `${Number(account.balanceFormatted).toFixed(3)} ${account.balanceSymbol}` : ""}
+                    </span>
+                    <span className="text-xs font-medium text-zinc-200">{account.displayName}</span>
+                    <ChevronDown className={`h-3 w-3 text-zinc-600 transition-transform duration-200 ${modalOpen ? "rotate-180" : ""}`} />
                   </button>
                 </div>
                 <WalletModal
@@ -107,56 +73,72 @@ function CustomWalletButton() {
   );
 }
 
+const NAV_ITEMS = [
+  { to: "/", label: "Post Job", icon: Plus, end: true },
+  { to: "/jobs", label: "My Jobs", icon: Briefcase, end: false },
+  { to: "/work", label: "Marketplace", icon: Hammer, end: false },
+  { to: "/my-tasks", label: "My Work", icon: User, end: false },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: false },
+];
+
 export default function Layout() {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+    `relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[13px] font-medium transition-all duration-150 ${
       isActive
-        ? "bg-blue-600/20 text-blue-400 shadow-sm shadow-blue-500/10"
-        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+        ? "text-white bg-white/[0.08]"
+        : "text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04]"
     }`;
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a]">
-      <header className="sticky top-0 z-50 border-b border-slate-800/60 bg-[#0a0e1a]/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-8">
-            <NavLink to="/" className="flex items-center gap-2.5 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-shadow">
-                <Bot className="h-5 w-5 text-white" />
+    <div className="min-h-screen bg-bg">
+      <header className="sticky top-0 z-50 border-b border-border/50 bg-bg/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
+          {/* Logo */}
+          <div className="flex items-center gap-6">
+            <NavLink to="/" className="group flex items-center gap-2.5">
+              <div className="relative flex h-8 w-8 items-center justify-center">
+                {/* Glow */}
+                <div className="absolute inset-0 rounded-lg bg-primary/20 blur-md transition-all group-hover:bg-primary/30" />
+                {/* Mark */}
+                <svg
+                  viewBox="0 0 32 32"
+                  fill="none"
+                  className="relative h-8 w-8"
+                  aria-hidden="true"
+                >
+                  <rect width="32" height="32" rx="8" className="fill-primary" />
+                  {/* Relay node paths */}
+                  <circle cx="10" cy="11" r="2.5" fill="white" fillOpacity="0.9" />
+                  <circle cx="22" cy="11" r="2.5" fill="white" fillOpacity="0.9" />
+                  <circle cx="16" cy="22" r="2.5" fill="white" fillOpacity="0.9" />
+                  <path d="M12 12.5L14.5 20" stroke="white" strokeOpacity="0.5" strokeWidth="1.5" strokeLinecap="round" />
+                  <path d="M20 12.5L17.5 20" stroke="white" strokeOpacity="0.5" strokeWidth="1.5" strokeLinecap="round" />
+                  <path d="M12.5 11H19.5" stroke="white" strokeOpacity="0.5" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
               </div>
-              <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-                TaskMaster
+              <span className="text-[15px] font-bold tracking-tight text-white" style={{ fontFamily: 'Space Grotesk, system-ui, sans-serif' }}>
+                Relayer
               </span>
             </NavLink>
-            <nav className="hidden md:flex items-center gap-1">
-              <NavLink to="/" className={linkClass} end>
-                <Plus className="h-4 w-4" />
-                Post Job
-              </NavLink>
-              <NavLink to="/jobs" className={linkClass}>
-                <Briefcase className="h-4 w-4" />
-                My Jobs
-              </NavLink>
-              <NavLink to="/work" className={linkClass}>
-                <Hammer className="h-4 w-4" />
-                Marketplace
-              </NavLink>
-              <NavLink to="/my-tasks" className={linkClass}>
-                <User className="h-4 w-4" />
-                My Work
-              </NavLink>
-              <NavLink to="/dashboard" className={linkClass}>
-                <LayoutDashboard className="h-4 w-4" />
-                Dashboard
-              </NavLink>
+
+            <div className="hidden md:block h-5 w-px bg-border/60" />
+
+            <nav className="hidden md:flex items-center gap-0.5">
+              {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+                <NavLink key={to} to={to} className={linkClass} end={end}>
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                </NavLink>
+              ))}
             </nav>
           </div>
-          <div className="flex items-center gap-3">
-            <FaucetButton />
+
+          <div className="flex items-center gap-2.5">
             <CustomWalletButton />
           </div>
         </div>
       </header>
+
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
         <Outlet />
       </main>

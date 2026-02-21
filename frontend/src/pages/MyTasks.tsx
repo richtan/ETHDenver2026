@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Loader2,
   ExternalLink,
+  Star,
 } from "lucide-react";
 import { CONTRACT_ADDRESS } from "../config/wagmi";
 import { JOB_MARKETPLACE_ABI } from "../abi/JobMarketplace";
@@ -15,15 +16,19 @@ import { formatEth, ethToUsd } from "../lib/formatEth";
 import { useEthPrice } from "../hooks/useEthPrice";
 import { useMyTasks } from "../hooks/useMyTasks";
 import { useVerificationHistory, type VerificationRecord } from "../hooks/useVerificationHistory";
-import { Star } from "lucide-react";
+import { Badge } from "../components/ui/badge";
+import { Card, CardHeader, CardBody, CardFooter } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { EmptyState } from "../components/ui/empty-state";
+import { PageHeader } from "../components/ui/page-header";
 
 const TASK_STATUS = {
-  0: { label: "Pending", color: "text-slate-400 bg-slate-800/50", icon: Clock },
-  1: { label: "Open", color: "text-blue-400 bg-blue-500/20", icon: Clock },
-  2: { label: "In Progress", color: "text-amber-400 bg-amber-500/20", icon: CheckCircle2 },
-  3: { label: "Pending Verification", color: "text-cyan-400 bg-cyan-500/20", icon: Loader2 },
-  4: { label: "Completed", color: "text-emerald-400 bg-emerald-500/20", icon: CheckCircle2 },
-  5: { label: "Cancelled", color: "text-red-400 bg-red-500/20", icon: ExternalLink },
+  0: { label: "Pending",              dot: "bg-zinc-500",   variant: "default"  as const },
+  1: { label: "Open",                 dot: "bg-blue-400",   variant: "info"     as const },
+  2: { label: "In Progress",          dot: "bg-amber-400",  variant: "warning"  as const },
+  3: { label: "Pending Verification", dot: "bg-cyan-400",   variant: "info"     as const },
+  4: { label: "Completed",            dot: "bg-emerald-500",variant: "success"  as const },
+  5: { label: "Cancelled",            dot: "bg-red-500",    variant: "danger"   as const },
 } as const;
 
 function truncate(text: string, maxLen = 80): string {
@@ -61,98 +66,79 @@ function TaskRow({ taskId, bonusRecord }: { taskId: bigint; bonusRecord?: Verifi
   const statusMeta = parsedTask
     ? (TASK_STATUS[parsedTask.status as keyof typeof TASK_STATUS] ?? TASK_STATUS[0])
     : null;
-  const StatusIcon = statusMeta?.icon ?? Clock;
 
   if (isLoading) {
     return (
-      <motion.article
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="flex flex-col rounded-xl border border-slate-800/60 bg-slate-900/40 p-5 backdrop-blur-sm"
-      >
-        <div className="mb-3 h-4 w-24 animate-pulse rounded bg-slate-700/50" />
-        <div className="mb-4 h-5 w-full animate-pulse rounded bg-slate-700/50" />
-        <div className="mb-2 h-4 w-3/4 animate-pulse rounded bg-slate-700/40" />
-        <div className="flex items-center gap-3">
-          <div className="h-5 w-20 animate-pulse rounded bg-slate-700/40" />
-          <div className="h-5 w-28 animate-pulse rounded bg-slate-700/40" />
-        </div>
-        <div className="mt-4 flex items-center justify-end gap-2">
-          <div className="h-9 w-24 animate-pulse rounded-lg bg-slate-700/50" />
-        </div>
-      </motion.article>
+      <Card className="p-5">
+        <div className="mb-3 h-3 w-20 animate-pulse rounded-xl bg-surface-light" />
+        <div className="mb-3 h-4 w-full animate-pulse rounded-xl bg-surface-light" />
+        <div className="mb-3 h-4 w-3/4 animate-pulse rounded-xl bg-surface-lighter/30" />
+        <div className="h-9 w-24 animate-pulse rounded-xl bg-surface-light" />
+      </Card>
     );
   }
 
-  if (!parsedTask) {
-    return null;
-  }
+  if (!parsedTask) return null;
+
+  const hasBonusValue = bonusRecord?.bonus_wei && bonusRecord.bonus_wei !== "0" && bonusRecord.bonus_wei !== "";
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative flex flex-col rounded-xl border border-slate-800/60 bg-slate-900/40 p-5 backdrop-blur-sm transition-colors hover:border-slate-700/80 hover:bg-slate-900/60"
+      transition={{ duration: 0.3 }}
     >
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full border border-slate-700/60 px-2.5 py-1 text-xs font-medium ${statusMeta?.color}`}
-        >
-          {parsedTask.status === 3 ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <StatusIcon className="h-3.5 w-3.5" />
-          )}
-          {statusMeta?.label ?? "Unknown"}
-        </span>
-        <span className="text-xs text-slate-500">Task #{parsedTask.id.toString()}</span>
-      </div>
+      <Card hover className="flex flex-col">
+        <CardHeader className="flex items-center justify-between">
+          <span className="text-xs text-zinc-500">Task #{parsedTask.id.toString()}</span>
+          <Badge
+            variant={statusMeta?.variant ?? "default"}
+            dot={parsedTask.status !== 3 ? (statusMeta?.dot ?? "bg-zinc-500") : undefined}
+          >
+            {parsedTask.status === 3 && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+            {statusMeta?.label ?? "Unknown"}
+          </Badge>
+        </CardHeader>
 
-      <p className="text-slate-300 line-clamp-2 min-h-[2.5rem]">
-        {truncate(parsedTask.description)}
-      </p>
+        <CardBody className="flex-1">
+          <p className="text-sm text-zinc-200 leading-snug">
+            {truncate(parsedTask.description)}
+          </p>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-400">
-          <Clock className="h-4 w-4" />
-          {formatEth(parsedTask.reward)} ETH
-          {ethPrice && (
-            <span className="ml-1 text-slate-500 text-xs">
-              (~${ethToUsd(parsedTask.reward, ethPrice)})
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-400">
+              <Clock className="h-3.5 w-3.5" />
+              {formatEth(parsedTask.reward)} ETH
+              {ethPrice && (
+                <span className="text-xs font-normal text-zinc-500">
+                  (~${ethToUsd(parsedTask.reward, ethPrice)})
+                </span>
+              )}
             </span>
-          )}
-        </span>
-        {parsedTask.status === 4 && bonusRecord && bonusRecord.bonus_wei !== "0" && bonusRecord.bonus_wei !== "" && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400">
-            <Star className="h-3 w-3" />
-            +{(Number(BigInt(bonusRecord.bonus_wei)) / 1e18).toFixed(4)} ETH bonus
-          </span>
-        )}
-      </div>
+            {parsedTask.status === 4 && hasBonusValue && bonusRecord && (
+              <Badge variant="success">
+                <Star className="h-2.5 w-2.5" />
+                +{(Number(BigInt(bonusRecord.bonus_wei)) / 1e18).toFixed(4)} ETH bonus
+              </Badge>
+            )}
+          </div>
+        </CardBody>
 
-      <Link
-        to={`/work/${parsedTask.id.toString()}`}
-        state={{ from: "/my-tasks" }}
-        className="mt-5 inline-flex w-fit items-center gap-2 rounded-lg border border-slate-600/60 bg-slate-800/50 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500/80 hover:bg-slate-800/80 hover:text-white group/link"
-      >
-        View details
-        <ArrowRight className="h-4 w-4 transition-transform group-hover/link:translate-x-0.5" />
-      </Link>
+        <CardFooter>
+          <Link
+            to={`/work/${parsedTask.id.toString()}`}
+            state={{ from: "/my-tasks" }}
+          >
+            <Button variant="secondary" size="sm">
+              View details
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
+        </CardFooter>
+      </Card>
     </motion.article>
   );
 }
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.06,
-      delayChildren: 0.05,
-    },
-  },
-};
 
 export default function MyTasks() {
   const { isConnected, address } = useAccount();
@@ -164,82 +150,45 @@ export default function MyTasks() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="mb-10"
-      >
-        <div className="mb-3 flex items-center gap-2 text-amber-400/90">
-          <User className="h-6 w-6" />
-          <span className="text-sm font-medium uppercase tracking-widest">
-            Worker
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            My Work
-          </h1>
-          {isConnected && !isLoading && (
-            <span className="rounded-full border border-slate-700/60 bg-slate-800/50 px-3 py-1 text-sm font-medium text-slate-300">
+      <PageHeader
+        title="My Work"
+        description="View your accepted and completed work on the Relayer marketplace."
+        badge={
+          isConnected && !isLoading ? (
+            <Badge>
               {ids.length} {ids.length === 1 ? "task" : "tasks"}
-            </span>
-          )}
-        </div>
-        <p className="mt-3 text-lg text-slate-400">
-          View your accepted and completed work on the TaskMaster marketplace.
-        </p>
-      </motion.section>
+            </Badge>
+          ) : undefined
+        }
+      />
 
       {!isConnected ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="rounded-xl border border-dashed border-slate-700/60 bg-slate-900/30 py-16 text-center"
-        >
-          <User className="mx-auto mb-4 h-12 w-12 text-slate-600" />
-          <p className="text-slate-400">
-            Connect your wallet to view your tasks.
-          </p>
-        </motion.div>
+        <EmptyState
+          icon={User}
+          title="Connect your wallet"
+          description="Connect your wallet to view your tasks."
+        />
       ) : isLoading ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex flex-col items-center justify-center gap-3 py-20"
-        >
-          <Loader2 className="h-10 w-10 animate-spin text-slate-500" />
-          <span className="text-lg text-slate-400">Loading your tasks…</span>
-        </motion.div>
+        <div className="flex items-center justify-center gap-2 py-20 text-zinc-500">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Loading your tasks…</span>
+        </div>
       ) : !hasTasks ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="rounded-xl border border-dashed border-slate-700/60 bg-slate-900/30 py-16 text-center"
+        <EmptyState
+          icon={CheckCircle2}
+          title="No tasks yet"
+          description="Accept tasks from the marketplace to see them here."
         >
-          <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-slate-600" />
-          <p className="text-lg font-medium text-slate-400">
-            No tasks yet
-          </p>
-          <p className="mt-2 text-sm text-slate-500">
-            Accept tasks from the marketplace to see them here.
-          </p>
-          <Link
-            to="/work"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg border border-slate-600/60 bg-slate-800/50 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500/80 hover:bg-slate-800/80 hover:text-white"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Browse marketplace
+          <Link to="/work">
+            <Button variant="secondary" size="md">
+              <ExternalLink className="h-4 w-4" />
+              Browse marketplace
+            </Button>
           </Link>
-        </motion.div>
+        </EmptyState>
       ) : (
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3"
-        >
-          <AnimatePresence mode="popLayout">
+        <AnimatePresence mode="popLayout">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {ids.map((taskId) => (
               <TaskRow
                 key={taskId.toString()}
@@ -247,8 +196,8 @@ export default function MyTasks() {
                 bonusRecord={verificationHistory?.find((v) => v.task_id === Number(taskId))}
               />
             ))}
-          </AnimatePresence>
-        </motion.div>
+          </div>
+        </AnimatePresence>
       )}
     </div>
   );

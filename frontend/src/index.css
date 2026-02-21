@@ -1,35 +1,83 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-  --color-primary: #2563eb;
-  --color-primary-light: #3b82f6;
-  --color-success: #10b981;
+  --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  /* Primary */
+  --color-primary:       #2563eb;
+  --color-primary-dark:  #1d4ed8;
+  --color-primary-light: #60a5fa;
+
+  /* Semantic */
+  --color-success: #22c55e;
   --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-surface: #0f172a;
-  --color-surface-light: #1e293b;
-  --color-surface-lighter: #334155;
-  --color-border: #334155;
-  --color-text: #f1f5f9;
-  --color-text-muted: #94a3b8;
+  --color-danger:  #ef4444;
+
+  /* ── Zinc neutral surface stack (lightened) ── */
+  --color-bg:              #111113;
+  --color-surface:         #161618;
+  --color-card:            #1c1c1f;
+  --color-card-hover:      #232326;
+  --color-surface-light:   #2c2c30;
+  --color-surface-lighter: #3f3f46;
+
+  /* Borders */
+  --color-border:        #2e2e33;
+  --color-border-subtle: #232326;
+
+  /* Text */
+  --color-text:           #fafafa;
+  --color-text-muted:     #a1a1aa;
+  --color-text-secondary: #71717a;
 }
 
+/* ── Base ─────────────────────────────── */
 body {
-  background-color: var(--color-surface);
+  background-color: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-::-webkit-scrollbar {
-  width: 6px;
+h1, h2, h3 {
+  font-family: var(--font-display);
 }
-::-webkit-scrollbar-track {
-  background: var(--color-surface);
+
+/* ── Focus rings ──────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
+
+/* ── Scrollbar ────────────────────────── */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
+  background: var(--color-surface-light);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
   background: var(--color-surface-lighter);
-  border-radius: 3px;
+}
+
+/* ── Selection ────────────────────────── */
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  color: var(--color-text);
+}
+
+/* ── Fade-in animation ────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.35s ease-out both;
 }

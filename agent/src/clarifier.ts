@@ -25,7 +25,7 @@ requirements.
 
 You will receive:
 - A job description from the client
-- A budget in ETH
+- A budget in USD
 - A conversation history of prior Q&A rounds (may be empty on the first call)
 
 Your job is to decide whether you have enough information to decompose this job into
@@ -72,7 +72,7 @@ Respond as JSON with this shape:
     {
       "description": "What needs to be done",
       "proofRequirements": "Exact criteria the proof image must show (or 'N/A - AI executed')",
-      "reward": "0.003",
+      "reward": "3.50",
       "executorType": "human"
     }
   ]
@@ -98,7 +98,7 @@ export async function clarifyJob(
         {
           description: "Complete the requested task as described",
           proofRequirements: "Screenshot or photo showing the completed work",
-          reward: "0.003",
+          reward: "3.50",
         },
       ],
     };
@@ -116,7 +116,7 @@ export async function clarifyJob(
       { role: "system", content: CLARIFY_PROMPT },
       {
         role: "user",
-        content: `Job: "${description}"\nBudget: ${budget} ETH${conversationText}`,
+        content: `Job: "${description}"\nBudget: $${budget} USD${conversationText}`,
       },
     ],
     response_format: { type: "json_object" },

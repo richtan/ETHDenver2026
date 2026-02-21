@@ -8,16 +8,23 @@ import {
   CheckCircle2,
   Loader2,
   Plus,
-  MessageCircle,
   Send,
   ListChecks,
   Coins,
   SkipForward,
+  ArrowLeft,
+  Wallet,
 } from 'lucide-react';
 import { useCreateJob } from '../hooks/useCreateJob';
 import { useEthPrice } from '../hooks/useEthPrice';
 import { usdToEth } from '../lib/formatEth';
 import { AGENT_API_URL } from '../config/wagmi';
+import { Button } from '../components/ui/button';
+import { Card, CardHeader, CardBody, CardFooter } from '../components/ui/card';
+import { Textarea } from '../components/ui/input';
+import { Input } from '../components/ui/input';
+import { EmptyState } from '../components/ui/empty-state';
+import { PageHeader } from '../components/ui/page-header';
 
 interface TaskPreview {
   description: string;
@@ -30,8 +37,6 @@ interface QAPair {
   question: string;
   answer: string;
 }
-
-/* ── Clarification conversation panel ─────────────────────────────── */
 
 function ClarificationView({
   description,
@@ -78,65 +83,51 @@ function ClarificationView({
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
       {/* Left: Conversation */}
       <div className="flex-1 min-w-0">
-        <div className="rounded-xl border border-slate-800/60 bg-slate-900/40 backdrop-blur-sm overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center gap-2 border-b border-slate-800/60 px-5 py-3">
-            <MessageCircle className="h-4 w-4 text-blue-400" />
-            <span className="text-sm font-medium text-slate-300">
-              Clarifying your job
-            </span>
-          </div>
-
-          {/* Chat body */}
-          <div className="max-h-[28rem] overflow-y-auto px-5 py-4 space-y-4">
+        <Card>
+          <div className="max-h-128 overflow-y-auto px-5 py-5 space-y-5">
             {/* Original description */}
             <div className="flex gap-3">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600/20 text-blue-400 text-xs font-bold">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary-light text-[10px] font-semibold">
                 You
               </div>
-              <div className="rounded-lg bg-slate-800/60 px-4 py-2.5 text-sm text-slate-300">
+              <div className="rounded-xl bg-surface-light px-4 py-3 text-sm text-zinc-200 leading-relaxed">
                 {description}
-                <span className="ml-2 text-xs text-slate-500">
-                  (${budget} USD)
-                </span>
+                <span className="ml-2 text-xs text-zinc-500">(${budget} USD)</span>
               </div>
             </div>
 
-            {/* Prior Q&A pairs */}
             {conversation.map((qa, i) => (
               <div key={i} className="space-y-3">
                 <div className="flex gap-3">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600/20 text-indigo-400 text-xs font-bold">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-700/50 text-zinc-400 text-[10px] font-semibold">
                     AI
                   </div>
-                  <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-4 py-2.5 text-sm text-slate-300">
+                  <div className="rounded-xl bg-surface-light border border-border px-4 py-3 text-sm text-zinc-300 leading-relaxed">
                     {qa.question}
                   </div>
                 </div>
                 <div className="flex gap-3 pl-10">
-                  <div className="rounded-lg bg-slate-800/60 px-4 py-2.5 text-sm text-slate-300">
+                  <div className="rounded-xl bg-surface-light px-4 py-3 text-sm text-zinc-300">
                     {qa.answer}
                   </div>
                 </div>
               </div>
             ))}
 
-            {/* Current questions (unanswered) */}
             {!isReady && currentQuestions.length > 0 && (
               <div className="space-y-4">
                 {currentQuestions.map((q, i) => (
                   <div key={i} className="space-y-2">
                     <div className="flex gap-3">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600/20 text-indigo-400 text-xs font-bold">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-700/50 text-zinc-400 text-[10px] font-semibold">
                         AI
                       </div>
-                      <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-4 py-2.5 text-sm text-slate-300">
+                      <div className="rounded-xl bg-surface-light border border-border px-4 py-3 text-sm text-zinc-300 leading-relaxed">
                         {q}
                       </div>
                     </div>
                     <div className="pl-10">
-                      <input
-                        type="text"
+                      <Input
                         value={answers[i] || ''}
                         onChange={(e) => {
                           const next = [...answers];
@@ -144,13 +135,8 @@ function ClarificationView({
                           setAnswers(next);
                         }}
                         placeholder="Your answer…"
-                        className="w-full rounded-lg border border-slate-700/60 bg-slate-800/40 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
                         onKeyDown={(e) => {
-                          if (
-                            e.key === 'Enter' &&
-                            canSubmitAnswers &&
-                            i === currentQuestions.length - 1
-                          ) {
+                          if (e.key === 'Enter' && canSubmitAnswers && i === currentQuestions.length - 1) {
                             onSubmitAnswers(answers);
                           }
                         }}
@@ -161,27 +147,24 @@ function ClarificationView({
               </div>
             )}
 
-            {/* Loading indicator */}
             {isLoading && (
               <div className="flex gap-3">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600/20 text-indigo-400">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-700/50 text-zinc-400">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 </div>
-                <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-4 py-2.5 text-sm text-slate-400">
+                <div className="rounded-xl bg-surface-light border border-border px-4 py-3 text-sm text-zinc-500">
                   Thinking…
                 </div>
               </div>
             )}
 
-            {/* Ready message */}
             {isReady && (
               <div className="flex gap-3">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600/20 text-emerald-400">
-                  <CheckCircle2 className="h-4 w-4" />
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
                 </div>
-                <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 text-sm text-emerald-300">
-                  I have all the details I need. Review the task breakdown and
-                  create your job when ready.
+                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-sm text-emerald-300">
+                  Good to go. Review the task breakdown and create your job when ready.
                 </div>
               </div>
             )}
@@ -189,70 +172,58 @@ function ClarificationView({
             <div ref={bottomRef} />
           </div>
 
-          {/* Actions */}
-          <div className="border-t border-slate-800/60 px-5 py-3 flex items-center gap-3">
+          <CardFooter className="flex items-center gap-3 bg-surface/30">
             {isReady ? (
-              <motion.button
+              <Button
+                variant="success"
+                size="lg"
                 onClick={onCreateJob}
                 disabled={isCreating}
-                whileHover={!isCreating ? { scale: 1.01 } : {}}
-                whileTap={!isCreating ? { scale: 0.99 } : {}}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition disabled:opacity-50 hover:shadow-emerald-500/40"
+                className="flex-1"
               >
                 {isCreating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Creating…
-                  </>
+                  <><Loader2 className="h-4 w-4 animate-spin" />Creating…</>
                 ) : (
-                  <>
-                    <Plus className="h-4 w-4" />
-                    Create Job
-                  </>
+                  <><Plus className="h-4 w-4" />Create Job</>
                 )}
-              </motion.button>
+              </Button>
             ) : (
-              <motion.button
+              <Button
+                size="lg"
                 onClick={() => onSubmitAnswers(answers)}
                 disabled={!canSubmitAnswers || isLoading}
-                whileHover={
-                  canSubmitAnswers && !isLoading ? { scale: 1.01 } : {}
-                }
-                whileTap={canSubmitAnswers && !isLoading ? { scale: 0.99 } : {}}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/25 transition disabled:cursor-not-allowed disabled:opacity-50 hover:shadow-blue-500/40"
+                className="flex-1"
               >
                 <Send className="h-4 w-4" />
                 Submit Answers
-              </motion.button>
+              </Button>
             )}
             <button
               onClick={onSkip}
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition"
+              className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-400 transition"
             >
               <SkipForward className="h-3.5 w-3.5" />
               Skip
             </button>
-          </div>
-        </div>
+          </CardFooter>
+        </Card>
       </div>
 
       {/* Right: Live Task Preview */}
       <div className="w-full lg:w-80 shrink-0">
-        <div className="rounded-xl border border-slate-800/60 bg-slate-900/40 backdrop-blur-sm overflow-hidden lg:sticky lg:top-24">
-          <div className="flex items-center gap-2 border-b border-slate-800/60 px-5 py-3">
-            <ListChecks className="h-4 w-4 text-amber-400" />
-            <span className="text-sm font-medium text-slate-300">
-              Task Preview
-            </span>
+        <Card className="lg:sticky lg:top-20">
+          <CardHeader className="flex items-center gap-2">
+            <ListChecks className="h-4 w-4 text-zinc-500" />
+            <span className="text-sm font-medium text-zinc-300">Task Breakdown</span>
             {isLoading && (
-              <Loader2 className="h-3 w-3 animate-spin text-slate-500 ml-auto" />
+              <Loader2 className="h-3 w-3 animate-spin text-zinc-600 ml-auto" />
             )}
-          </div>
+          </CardHeader>
 
-          <div className="px-5 py-4 space-y-3">
+          <CardBody className="space-y-2.5">
             {taskPreview.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-4">
-                Task breakdown will appear here…
+              <p className="text-xs text-zinc-600 text-center py-6">
+                Will appear as you answer questions…
               </p>
             ) : (
               <AnimatePresence mode="popLayout">
@@ -262,34 +233,30 @@ function ClarificationView({
                     <motion.div
                       key={i}
                       layout
-                      initial={{ opacity: 0, y: 8 }}
+                      initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -4 }}
-                      transition={{ delay: i * 0.05 }}
-                      className={`rounded-lg border p-3 space-y-1.5 ${
+                      transition={{ delay: i * 0.04 }}
+                      className={`rounded-xl border p-3 space-y-1.5 ${
                         isAi
-                          ? 'border-purple-500/30 bg-purple-500/5'
-                          : 'border-slate-700/50 bg-slate-800/30'
+                          ? 'border-purple-500/20 bg-purple-500/5'
+                          : 'border-border bg-surface-light/50'
                       }`}
                     >
                       <div className="flex items-start gap-2">
-                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                          isAi
-                            ? 'bg-purple-600/20 text-purple-400'
-                            : 'bg-blue-600/20 text-blue-400'
+                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[9px] font-bold ${
+                          isAi ? 'bg-purple-500/20 text-purple-400' : 'bg-primary/15 text-primary-light'
                         }`}>
                           {isAi ? 'AI' : i + 1}
                         </span>
-                        <div className="text-sm text-slate-300 leading-snug prose prose-invert prose-sm max-w-none">
+                        <div className="text-xs text-zinc-300 leading-snug">
                           <ReactMarkdown
                             components={{
                               p: ({ children }) => <p className="m-0">{children}</p>,
                               ul: ({ children }) => <ul className="my-1 ml-4 list-disc">{children}</ul>,
-                              ol: ({ children }) => <ol className="my-1 ml-4 list-decimal">{children}</ol>,
                               li: ({ children }) => <li className="my-0.5">{children}</li>,
-                              strong: ({ children }) => <strong className="font-semibold text-slate-200">{children}</strong>,
-                              em: ({ children }) => <em className="italic">{children}</em>,
-                              code: ({ children }) => <code className="rounded bg-slate-800/50 px-1 py-0.5 text-[10px] font-mono text-purple-300">{children}</code>,
+                              strong: ({ children }) => <strong className="font-semibold text-zinc-200">{children}</strong>,
+                              code: ({ children }) => <code className="rounded bg-zinc-800 px-1 py-0.5 text-[10px] font-mono text-purple-300">{children}</code>,
                             }}
                           >
                             {task.description}
@@ -297,49 +264,32 @@ function ClarificationView({
                         </div>
                       </div>
                       {isAi ? (
-                        <div className="pl-7 flex items-center gap-1 text-xs text-purple-400">
+                        <div className="pl-7 flex items-center gap-1 text-[10px] text-purple-400/80">
                           <Zap className="h-3 w-3" />
-                          AI-executed (free)
+                          AI-executed
                         </div>
                       ) : (
-                        <>
-                          <div className="pl-7 text-xs text-slate-500 leading-relaxed prose prose-invert prose-xs max-w-none">
-                            <ReactMarkdown
-                              components={{
-                                p: ({ children }) => <p className="m-0">{children}</p>,
-                                ul: ({ children }) => <ul className="my-1 ml-4 list-disc">{children}</ul>,
-                                ol: ({ children }) => <ol className="my-1 ml-4 list-decimal">{children}</ol>,
-                                li: ({ children }) => <li className="my-0.5">{children}</li>,
-                                strong: ({ children }) => <strong className="font-semibold text-slate-400">{children}</strong>,
-                                em: ({ children }) => <em className="italic">{children}</em>,
-                                code: ({ children }) => <code className="rounded bg-slate-800/50 px-1 py-0.5 text-[10px] font-mono text-purple-300">{children}</code>,
-                              }}
-                            >
-                              {task.proofRequirements}
-                            </ReactMarkdown>
-                          </div>
-                          <div className="pl-7 flex items-center gap-1 text-xs text-amber-400">
-                            <Coins className="h-3 w-3" />
-                            {task.reward} ETH
-                            <span className="text-slate-500 ml-1">
+                        <div className="pl-7 flex items-center gap-1 text-[10px] text-amber-400/80">
+                          <Coins className="h-3 w-3" />
+                          {task.reward} ETH
+                          {ethPrice && (
+                            <span className="text-zinc-600 ml-0.5">
                               (~${(parseFloat(task.reward) * (ethPrice ?? 0)).toFixed(2)})
                             </span>
-                          </div>
-                        </>
+                          )}
+                        </div>
                       )}
                     </motion.div>
                   );
                 })}
               </AnimatePresence>
             )}
-          </div>
-        </div>
+          </CardBody>
+        </Card>
       </div>
     </div>
   );
 }
-
-/* ── Main page ────────────────────────────────────────────────────── */
 
 export default function ClientPortal() {
   const { isConnected } = useAccount();
@@ -350,22 +300,16 @@ export default function ClientPortal() {
   const [description, setDescription] = useState('');
   const [budget, setBudget] = useState('');
 
-  // Clarification state
-  const [phase, setPhase] = useState<'form' | 'clarifying' | 'submitting'>(
-    'form',
-  );
+  const [phase, setPhase] = useState<'form' | 'clarifying' | 'submitting'>('form');
   const [conversation, setConversation] = useState<QAPair[]>([]);
   const [currentQuestions, setCurrentQuestions] = useState<string[]>([]);
   const [taskPreview, setTaskPreview] = useState<TaskPreview[]>([]);
-  const [enrichedDescription, setEnrichedDescription] = useState<string | null>(
-    null,
-  );
+  const [enrichedDescription, setEnrichedDescription] = useState<string | null>(null);
   const [clarifyLoading, setClarifyLoading] = useState(false);
   const [clarifyError, setClarifyError] = useState<string | null>(null);
 
   const budgetNum = parseFloat(budget);
-  const canStartClarify =
-    description.length >= 10 && !isNaN(budgetNum) && budgetNum >= 1;
+  const canStartClarify = description.length >= 10 && !isNaN(budgetNum) && budgetNum >= 1;
   const ethEquivalent = ethPrice && budgetNum > 0 ? usdToEth(budgetNum, ethPrice) : null;
   const isCreating = isPending || isConfirming;
 
@@ -404,9 +348,7 @@ export default function ClientPortal() {
         setCurrentQuestions(data.questions || []);
       }
     } catch (err: unknown) {
-      setClarifyError(
-        err instanceof Error ? err.message : 'An unknown error occurred',
-      );
+      setClarifyError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setClarifyLoading(false);
     }
@@ -424,10 +366,7 @@ export default function ClientPortal() {
   }
 
   function handleSubmitAnswers(answers: string[]) {
-    const newPairs = currentQuestions.map((q, i) => ({
-      question: q,
-      answer: answers[i],
-    }));
+    const newPairs = currentQuestions.map((q, i) => ({ question: q, answer: answers[i] }));
     const newConvo = [...conversation, ...newPairs];
     setConversation(newConvo);
     setCurrentQuestions([]);
@@ -457,140 +396,110 @@ export default function ClientPortal() {
   }
 
   return (
-    <div
-      className={
-        phase === 'clarifying' ? 'mx-auto max-w-5xl' : 'mx-auto max-w-3xl'
-      }
-    >
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="mb-12"
-      >
-        <div className="flex items-center gap-2 text-blue-400 mb-3">
-          <Zap className="h-6 w-6" />
-          <span className="text-sm font-medium uppercase tracking-widest">
-            AI Agent Marketplace
-          </span>
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-          Hire an AI Agent to Get Things Done
-        </h1>
-        <p className="mt-3 text-lg text-slate-400">
-          Submit your job with a budget. An AI agent will break it into tasks
-          and coordinate workers on Base.
-        </p>
-      </motion.section>
+    <div className={phase === 'clarifying' ? 'mx-auto max-w-5xl' : 'mx-auto max-w-2xl'}>
+      {phase === 'clarifying' ? (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="mb-8"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
+            <span className="text-zinc-700">/</span>
+            <span className="text-sm text-zinc-400">Refining your job</span>
+          </div>
+        </motion.div>
+      ) : (
+        <PageHeader
+          title="Post a Job"
+          description="Describe what you need done and set a budget. An AI agent will break it into tasks on Base."
+        />
+      )}
 
       {!isConnected ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-8 text-center"
-        >
-          <p className="text-slate-400">
-            Connect your wallet to create jobs and view your submissions.
-          </p>
-        </motion.div>
+        <EmptyState
+          icon={Wallet}
+          title="Connect your wallet"
+          description="Connect your wallet to post jobs on the Relayer marketplace."
+        />
       ) : (
         <>
           {phase === 'form' && (
             <motion.form
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
+              transition={{ delay: 0.05 }}
               onSubmit={handleStartClarify}
-              className="mb-12 rounded-xl border border-slate-800/60 bg-slate-900/40 p-6 backdrop-blur-sm"
             >
-              <h2 className="mb-4 text-lg font-semibold text-white">
-                Submit a New Job
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="description"
-                    className="mb-2 block text-sm font-medium text-slate-400"
-                  >
-                    Job Description
-                  </label>
-                  <textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe what you need done. Be specific (min 10 characters)."
-                    rows={4}
-                    minLength={10}
-                    className="w-full rounded-lg border border-slate-700/60 bg-slate-800/40 px-4 py-3 text-white placeholder-slate-500 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
-                  />
-                  <p className="mt-1 text-xs text-slate-500">
-                    {description.length}/10 min characters
-                  </p>
-                </div>
-                <div>
-                  <label
-                    htmlFor="budget"
-                    className="mb-2 block text-sm font-medium text-slate-400"
-                  >
-                    Budget (USD)
-                  </label>
-                  <input
-                    id="budget"
-                    type="text"
-                    inputMode="decimal"
-                    value={budget}
-                    onChange={(e) => setBudget(e.target.value)}
-                    placeholder="10"
-                    min={1}
-                    className="w-full rounded-lg border border-slate-700/60 bg-slate-800/40 px-4 py-3 text-white placeholder-slate-500 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
-                  />
-                  <p className="mt-1 text-xs text-slate-500">
-                    Min $1 USD
+              <Card>
+                <CardHeader>
+                  <h2 className="text-sm font-semibold text-white">Job Details</h2>
+                </CardHeader>
+                <CardBody className="space-y-5">
+                  <div className="space-y-1.5">
+                    <label htmlFor="description" className="block text-xs font-medium text-zinc-400">
+                      Description
+                    </label>
+                    <Textarea
+                      id="description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Describe what you need done. Be specific (min 10 characters)."
+                      rows={5}
+                      minLength={10}
+                    />
+                    <p className="text-[11px] text-zinc-600">
+                      {description.length} / 10 min characters
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="budget" className="block text-xs font-medium text-zinc-400">
+                      Budget (USD)
+                    </label>
+                    <Input
+                      id="budget"
+                      type="text"
+                      inputMode="decimal"
+                      value={budget}
+                      onChange={(e) => setBudget(e.target.value)}
+                      placeholder="10"
+                    />
                     {ethEquivalent && (
-                      <span className="ml-2 text-slate-400">
-                        &asymp; {ethEquivalent} ETH @ ${ethPrice?.toLocaleString()}/ETH
-                      </span>
+                      <p className="text-[11px] text-zinc-500">
+                        ≈ {ethEquivalent} ETH @ ${ethPrice?.toLocaleString()}/ETH
+                      </p>
                     )}
-                  </p>
-                </div>
-                <motion.button
-                  type="submit"
-                  disabled={!canStartClarify}
-                  whileHover={canStartClarify ? { scale: 1.01 } : {}}
-                  whileTap={canStartClarify ? { scale: 0.99 } : {}}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 font-medium text-white shadow-lg shadow-blue-500/25 transition disabled:cursor-not-allowed disabled:opacity-50 hover:shadow-blue-500/40"
-                >
-                  <Plus className="h-5 w-5" />
-                  Submit Job
-                </motion.button>
-              </div>
+                  </div>
+                </CardBody>
+                <CardFooter className="bg-surface/30">
+                  <Button
+                    type="submit"
+                    disabled={!canStartClarify}
+                    size="lg"
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Submit Job
+                  </Button>
+                </CardFooter>
+              </Card>
             </motion.form>
           )}
 
           {phase === 'clarifying' && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-12"
-            >
-              <div className="mb-4 flex items-center gap-3">
-                <button
-                  onClick={handleBack}
-                  className="text-sm text-slate-500 hover:text-slate-300 transition"
-                >
-                  &larr; Back
-                </button>
-                <h2 className="text-lg font-semibold text-white">
-                  Refining your job
-                </h2>
-              </div>
-
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
               {clarifyError && (
-                <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">
                   {clarifyError}
                 </div>
               )}
-
               <ClarificationView
                 description={description}
                 budget={budget}
