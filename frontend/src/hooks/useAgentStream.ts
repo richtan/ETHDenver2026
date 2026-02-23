@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { AGENT_API_URL } from "../config/wagmi";
+import { useState, useEffect } from 'react';
+import { AGENT_API_URL } from '../config/wagmi';
 
 export interface AgentAction {
   type: string;
@@ -31,7 +31,12 @@ export interface Metrics {
   jobsCompleted: number;
   jobsInProgress: number;
   sustainabilityRatio: number;
-  costBreakdown: { openai: number; gas: number; pinata: number; workers: number };
+  costBreakdown: {
+    openai: number;
+    gas: number;
+    pinata: number;
+    workers: number;
+  };
   revenueBreakdown: { jobProfits: number; aiServices: number; fees: number };
   pinataUsage: PinataUsage;
 }
@@ -80,7 +85,9 @@ export function useAgentStream() {
   const [actions, setActions] = useState<AgentAction[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [transactions, setTransactions] = useState<AgentTransaction[]>([]);
-  const [profitDetails, setProfitDetails] = useState<ProfitDetails | null>(null);
+  const [profitDetails, setProfitDetails] = useState<ProfitDetails | null>(
+    null,
+  );
   const [agentConfig, setAgentConfig] = useState<AgentConfig | null>(null);
   const [connected, setConnected] = useState(false);
 
@@ -90,39 +97,49 @@ export function useAgentStream() {
     es.onopen = async () => {
       setConnected(true);
       try {
-        const [actionsRes, txRes, metricsRes, profitRes, configRes] = await Promise.all([
-          fetch(`${AGENT_API_URL}/api/actions`).then(r => r.json()),
-          fetch(`${AGENT_API_URL}/api/transactions`).then(r => r.json()),
-          fetch(`${AGENT_API_URL}/api/metrics`).then(r => r.json()),
-          fetch(`${AGENT_API_URL}/api/profit-details`).then(r => r.json()),
-          fetch(`${AGENT_API_URL}/api/config`).then(r => r.json()),
-        ]);
+        const [actionsRes, txRes, metricsRes, profitRes, configRes] =
+          await Promise.all([
+            fetch(`${AGENT_API_URL}/api/actions`).then((r) => r.json()),
+            fetch(`${AGENT_API_URL}/api/transactions`).then((r) => r.json()),
+            fetch(`${AGENT_API_URL}/api/metrics`).then((r) => r.json()),
+            fetch(`${AGENT_API_URL}/api/profit-details`).then((r) => r.json()),
+            fetch(`${AGENT_API_URL}/api/config`).then((r) => r.json()),
+          ]);
         setActions(actionsRes);
         setTransactions(txRes);
         setMetrics(metricsRes);
         setProfitDetails(profitRes);
         setAgentConfig(configRes);
-      } catch { /* Initial load may fail if agent not ready */ }
+      } catch {
+        /* Initial load may fail if agent not ready */
+      }
     };
     es.onerror = () => setConnected(false);
 
-    es.addEventListener("action", (e) => {
+    es.addEventListener('action', (e) => {
       const action = JSON.parse(e.data);
       setActions((prev) => [action, ...prev].slice(0, 100));
     });
-    es.addEventListener("metrics", (e) => {
+    es.addEventListener('metrics', (e) => {
       setMetrics(JSON.parse(e.data));
       fetch(`${AGENT_API_URL}/api/profit-details`)
-        .then(r => r.json())
+        .then((r) => r.json())
         .then(setProfitDetails)
         .catch(() => {});
     });
-    es.addEventListener("transaction", (e) => {
+    es.addEventListener('transaction', (e) => {
       const tx = JSON.parse(e.data);
       setTransactions((prev) => [tx, ...prev].slice(0, 200));
     });
     return () => es.close();
   }, []);
 
-  return { actions, metrics, transactions, profitDetails, agentConfig, connected };
+  return {
+    actions,
+    metrics,
+    transactions,
+    profitDetails,
+    agentConfig,
+    connected,
+  };
 }

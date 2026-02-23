@@ -31,6 +31,7 @@ import {
   getRecentAgentTransactions,
 } from './supabase.js';
 import { type AgentWallet } from './wallet.js';
+import { postJobCreatedTweet } from './twitter.js';
 
 export class JobOrchestrator extends EventEmitter {
   private jobTaskCounts = new Map<bigint, number>();
@@ -224,6 +225,11 @@ export class JobOrchestrator extends EventEmitter {
         budget: formatEther(budget),
         timestamp: Date.now(),
       });
+
+      // Post job to Twitter (non-blocking; skip if Twitter env not set)
+      postJobCreatedTweet(jobId.toString(), description, formatEther(budget)).catch((err) =>
+        console.error('[twitter] Job tweet failed:', err),
+      );
 
       const taskPlan = await decomposeJob(description, budget);
       costTracker.logCost({
